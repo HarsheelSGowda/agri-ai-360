@@ -12,7 +12,11 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
   season. Live at `POST /predict/yield`, surfaced on the crop recommendation detail page. Covers
   11 of the 22 recommendation-engine crops (see `docs/dataset.md` for the full crop mapping and
   its limitations — it's a regional-historical estimate, not a per-farm forecast).
-- **Profit Prediction** — combine predicted yield with input-cost and market-price data.
+- ✅ **Profit Prediction** — `Revenue - Cost`, where Revenue = the real yield estimate above ×
+  real 2016 Agmarknet mandi price data (median per crop+state), and Cost is farmer-supplied (no
+  honest per-farm cost dataset was found — see `docs/dataset.md`). Live at `POST /predict/profit`,
+  surfaced right under the yield estimate on the recommendation detail page. Covers 6 crops (the
+  intersection of yield-supported crops and price-supported crops).
 - **Water Requirement** — crop-water-need estimation, combined with the existing water-risk signal.
 - **Risk Prediction (ML-based)** — replace/augment the current rule-based `risk_service.py` with a
   trained model once labeled risk/outcome data is available.

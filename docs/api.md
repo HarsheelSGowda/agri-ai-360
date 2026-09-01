@@ -62,6 +62,20 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   `reason` explains why — the prediction fields are `null` rather than a guess. `503` if the yield
   model hasn't been trained (`ml/yield_prediction/train.py` hasn't been run).
 
+## Profit Prediction (Phase 2)
+
+- `GET /predict/profit/options` → `{ supported_crops: [...6], price_year: "2016" }`.
+
+- `POST /predict/profit` — `{ crop, state, season, cost_per_acre, area_acres?, farm_id? }` →
+  `{ supported: bool, crop, mapped_crop, state, season, yield_tonnes_per_ha, price_rs_per_quintal,
+  price_source: "state" | "national_fallback", cost_per_acre, revenue_per_acre, profit_per_acre,
+  revenue_per_ha, profit_per_ha, margin_pct, total_farm_profit, reason }`. Internally calls the
+  yield model, then looks up a real 2016 Agmarknet median price and computes
+  `Revenue - farmer-supplied Cost`. `total_farm_profit` is `null` unless `area_acres` is supplied.
+  `supported` is `false` (with `reason`) if the crop isn't one of the 6 with price data, or if the
+  underlying yield estimate itself isn't supported. `422` for a negative `cost_per_acre`. `503` if
+  `ml/profit_prediction/build_price_reference.py` hasn't been run yet.
+
 ## Models
 
 - `GET /models` — trained model names + active model.

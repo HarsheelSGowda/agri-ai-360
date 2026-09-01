@@ -18,7 +18,7 @@ const phases = [
     tone: 'amber',
     items: [
       { label: 'Yield Prediction', done: true },
-      { label: 'Profit Prediction', done: false },
+      { label: 'Profit Prediction', done: true },
       { label: 'Water Intelligence', done: false },
       { label: 'Risk Prediction (ML-based)', done: false },
     ],

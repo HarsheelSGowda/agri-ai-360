@@ -1,0 +1,39 @@
+{
+  "source": "Agmarknet (Indian government mandi price records), calendar year 2016",
+  "price_unit": "Rs. per quintal (modal price)",
+  "aggregation": "median modal price per (crop, state), after IQR outlier removal",
+  "built_at": "2026-09-01T20:32:19.062918+00:00",
+  "not_inflation_adjusted": true,
+  "crops": {
+    "rice": {
+      "national_median_rs_per_quintal": 2350.0,
+      "states_covered": 20,
+      "records_used": 79916
+    },
+    "maize": {
+      "national_median_rs_per_quintal": 1405.0,
+      "states_covered": 21,
+      "records_used": 58956
+    },
+    "pigeonpeas": {
+      "national_median_rs_per_quintal": 7800.0,
+      "states_covered": 20,
+      "records_used": 43666
+    },
+    "blackgram": {
+      "national_median_rs_per_quintal": 8500.0,
+      "states_covered": 21,
+      "records_used": 41635
+    },
+    "mungbean": {
+      "national_median_rs_per_quintal": 5300.0,
+      "states_covered": 23,
+      "records_used": 36068
+    },
+    "lentil": {
+      "national_median_rs_per_quintal": 5561.0,
+      "states_covered": 13,
+      "records_used": 24946
+    }
+  }
+}

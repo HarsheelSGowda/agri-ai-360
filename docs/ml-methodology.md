@@ -124,3 +124,54 @@ forecast for a specific farm in a specific year. It has no access to an individu
 health, irrigation status, or this season's actual weather — those are the crop-recommendation
 model's inputs, not this one's. Treat the output as a regional benchmark to compare against, not a
 guarantee. This caveat is shown directly under every yield estimate in the UI.
+
+# Part 3 — Profit Prediction (Phase 2)
+
+## Why this is a calculation, not a "trained profit model"
+
+Profit = Revenue − Cost. Faking a single end-to-end "profit prediction model" would require either
+(a) a dataset that honestly links farm-level cost to outcome (none was found — see
+`docs/dataset.md`), or (b) inventing plausible-looking cost figures per crop and presenting them as
+if they were data-driven. Both are dishonest under this project's own rules. Instead:
+
+```
+Revenue = predicted_yield_t_per_ha (real regressor, Part 2)
+          x 10                      (t -> quintal)
+          x price_rs_per_quintal    (real 2016 Agmarknet median, per crop+state)
+
+Cost     = farmer-supplied Rs./acre (not modeled — see below)
+
+Profit   = Revenue - Cost
+```
+
+Implementation: [`app/services/profit_service.py`](../backend/app/services/profit_service.py),
+price table built by
+[`ml/profit_prediction/build_price_reference.py`](../ml/profit_prediction/build_price_reference.py).
+
+## Why cost is a farmer input, not a model output
+
+Cost of cultivation varies enormously by farm — irrigation method, labor arrangement, whether seed
+is farm-saved or purchased, local input prices, mechanization level. No public dataset found during
+this project offered farm-level (rather than aggregate/regional) cost figures in a form this app
+could honestly generalize from (see `docs/dataset.md` for what was searched and why it wasn't
+used). Presenting an invented "typical cost" as a model prediction would violate the project's
+explicit "never fabricate" rule. Asking the farmer directly is the honest alternative, and it also
+makes the estimate immediately relevant to their actual situation rather than a generic average.
+
+## Supported scope
+
+Profit prediction requires **both** a supported yield estimate (11 crops) **and** price data (6
+crops) for the same crop — the intersection is **6 crops**: rice, maize, pigeonpeas, blackgram,
+mungbean, lentil. Every other crop returns `{"supported": false, "reason": "..."}` rather than a
+guess, at whichever stage (yield or price) is actually missing.
+
+## Why these results are trustworthy (not fabricated)
+
+- `build_price_reference.py` is standalone and rerunnable against the raw CSVs in
+  `ml/datasets/agmarknet_prices/` — it doesn't hand-type a single price.
+- `profit_service.py::predict_profit` performs one arithmetic calculation from three real inputs
+  (model yield, looked-up price, farmer-supplied cost); it never substitutes a placeholder number
+  for a missing input — it returns `supported: false` instead.
+- Every profit estimate in the UI states its price year, price source (state-specific vs. national
+  fallback), and that cost is farmer-supplied — nothing is presented as more authoritative than it
+  actually is.

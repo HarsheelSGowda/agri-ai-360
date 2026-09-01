@@ -1,7 +1,7 @@
 # Dataset
 
-This project uses two independent public datasets — one per ML module. They are not merged; each
-has its own training script, model artifacts and metrics file.
+This project uses three independent public data sources — one per module. They are not merged;
+each has its own build/training script, model artifacts and metrics file.
 
 ## 1. Crop Recommendation
 
@@ -103,3 +103,52 @@ in the raw data but intentionally **not** used as features — see limitations b
 - District-level granularity exists in the raw data but isn't used as a feature (the app only
   collects farm *location* as free text, not a validated district), so predictions are at
   state-level resolution.
+
+## 3. Profit Prediction (Phase 2)
+
+### Source
+
+**Agmarknet mandi price records** — real Indian government market-price transactions (state,
+district, market, variety, group, arrivals, min/max/modal price in Rs./quintal, date), calendar
+year **2016** (the most recent full year available in the public mirror used:
+`iancovert/Agmarknet` on GitHub). Downloaded per-crop and stored locally under
+[`ml/datasets/agmarknet_prices/`](../ml/datasets/agmarknet_prices/). Not merged with the yield
+dataset — profit prediction calls the yield model internally and combines its output with this
+price data at request time (see `app/services/profit_service.py`).
+
+This is **not a trained model** — it's a real-data-derived reference lookup table
+(median price per crop per state), built once by
+[`ml/profit_prediction/build_price_reference.py`](../ml/profit_prediction/build_price_reference.py)
+into `models/price_reference.json`. Median (not mean) is used specifically because the raw data
+contains data-entry outliers (e.g. a single ₹210,000/quintal rice row among a ~₹2,350 median) —
+an IQR-based filter removes the most extreme rows before aggregating, documented in the script.
+
+### Crops covered
+
+Only **6 crops** have price data in the source mirror that maps cleanly to the recommendation
+engine's vocabulary: rice, maize, pigeonpeas (Arhar/Tur), blackgram (Urd), mungbean (Moong),
+lentil (Masur). This is a *subset* of the 11 crops the yield model supports — profit prediction is
+only offered where **both** a yield estimate and a price exist.
+
+**Chickpea was deliberately excluded**, even though the source repo has a "Kabuli Chana" (white
+chickpea) price series: Kabuli chana is a distinct, higher-value commercial variety from the
+desi/Bengal gram most farmers mean by "chickpea" in this context, and its price would be a
+materially misleading stand-in. Rather than silently substitute a different crop's price, the app
+reports chickpea profit as unsupported.
+
+### Known limitations
+
+- **Prices are from 2016 and are not inflation-adjusted.** No inflation-rate assumption is applied
+  anywhere in this codebase — doing so would mean presenting an invented adjustment factor as if it
+  were real data, which is exactly the kind of fabrication this project's rules prohibit. The UI
+  states the price year and source next to every profit estimate so this is never hidden.
+- **Cost of cultivation is not from any dataset.** No public, cleanly-structured cost-of-cultivation
+  data (e.g. from India's Commission for Agricultural Costs and Prices) was found in a usable form
+  during this project. Rather than invent per-crop cost figures and present them as data-driven,
+  the farmer supplies their own cost-per-acre estimate, and the backend only computes
+  `Revenue - Cost`. This is a deliberate design choice, not an oversight — see
+  `docs/ml-methodology.md`.
+- **State-level price, not local mandi price.** A farmer's actual nearest market may trade well
+  above or below their state's median. When a crop has no recorded trades at all in the selected
+  state, the app falls back to the national median and labels that explicitly
+  (`price_source: "national_fallback"`).

@@ -4,13 +4,14 @@
 
 Final-year Computer Science and Engineering major project.
 
-> **Status: MVP + Phase 2 (Yield Prediction).** Crop recommendation, soil intelligence, weather,
-> explainable AI (SHAP), model comparison, risk summary, history, the What-If simulator, and now
-> yield prediction are real and working end to end. Profit prediction, disease detection, the AI
-> assistant, voice, and satellite/IoT are intentionally **not implemented** — see
+> **Status: MVP + Phase 2 (Yield & Profit Prediction).** Crop recommendation, soil intelligence,
+> weather, explainable AI (SHAP), model comparison, risk summary, history, the What-If simulator,
+> yield prediction, and profit estimation are real and working end to end. Disease detection, the
+> AI assistant, voice, and satellite/IoT are intentionally **not implemented** — see
 > [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page. Nothing in this build
-> fabricates a metric or a prediction: every number shown comes from a trained model, a documented
-> rule-based calculation, or is explicitly labeled as a mock/prototype.
+> fabricates a metric or a prediction: every number shown comes from a trained model, real
+> historical data, a documented rule-based calculation, or is explicitly labeled as a
+> mock/prototype/farmer-supplied input.
 
 ---
 
@@ -28,8 +29,9 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
 3. Provide a transparent, reproducible model comparison (Random Forest, Gradient Boosting,
    XGBoost, SVM) with real accuracy/precision/recall/F1 — never fabricated numbers.
 4. Give a rule-based, clearly-labeled soil health score and farm risk summary.
-5. Architect the system so future modules (yield/profit prediction, disease detection, an LLM
-   assistant, voice, satellite/IoT) can be added without rewriting the core.
+5. Architect the system so further modules (disease detection, an LLM assistant, voice,
+   satellite/IoT) can be added without rewriting the core — yield and profit prediction shipped in
+   Phase 2 using exactly this extensibility.
 
 ## Features (this build)
 
@@ -50,6 +52,9 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
   district-level crop production records, estimating expected yield (t/ha) from state, crop and
   season — shown on the recommendation detail page for the 11 crops it has real training data for;
   honestly reports "not available" for the rest rather than guessing.
+- **Profit Prediction** (Phase 2): Revenue (real yield estimate × real 2016 Agmarknet mandi price)
+  minus a farmer-supplied cost estimate — 6 crops, right under the yield estimate. No invented
+  cost-of-cultivation numbers; see Limitations for why.
 - AI Roadmap page showing what's implemented vs. planned.
 - UI shells (clearly marked "coming in Phase 2/3") for Crop Doctor (disease detection) and the AI
   Agriculture Assistant — no fake model or LLM behind them.
@@ -82,7 +87,7 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown.
 
 ## Dataset
 
-Two independent public datasets, one per ML module (full provenance and limitations in
+Three independent public data sources, one per module (full provenance and limitations in
 [docs/dataset.md](docs/dataset.md)):
 
 - **Crop Recommendation Dataset** — 2,200 records, 22 crop classes, 7 numeric features
@@ -91,10 +96,13 @@ Two independent public datasets, one per ML module (full provenance and limitati
 - **India Crop Production records** — 325k district-level rows (state, crop, season, year → yield),
   1997–2020, sourced from a public mirror of India's crop-production statistics. Used for Phase 2
   yield prediction.
+- **Agmarknet mandi price records** — real 2016 Indian government market-price transactions for 6
+  crops, aggregated to a median-price-per-(crop, state) reference table. Used for Phase 2 profit
+  prediction (revenue side only — cost is farmer-supplied, see Limitations).
 
 ## ML Methodology
 
-Full methodology for both modules: [docs/ml-methodology.md](docs/ml-methodology.md).
+Full methodology for all modules: [docs/ml-methodology.md](docs/ml-methodology.md).
 
 **Crop Recommendation** — four classifiers trained on an 80/20 stratified split
 ([ml/crop_recommendation/train.py](ml/crop_recommendation/train.py)), evaluated with accuracy,
@@ -117,9 +125,15 @@ precision, recall, F1 and 5-fold CV. **Random Forest is the active model** (high
 | Random Forest | 0.919 | 1.03 | 3.51 |
 | Gradient Boosting | 0.793 | 2.09 | 5.63 |
 
+**Profit Prediction (Phase 2)** is not a trained model — it's `Revenue - Cost`, where Revenue =
+the real yield estimate above × a real 2016 Agmarknet median mandi price
+([ml/profit_prediction/build_price_reference.py](ml/profit_prediction/build_price_reference.py)),
+and Cost is farmer-supplied (see Limitations for why no cost dataset was used). Covers the 6-crop
+intersection of yield-supported and price-supported crops.
+
 None of these numbers are hardcoded in the API or UI — they are read live from
-`models/metrics.json` and `models/yield_metrics.json`, which each `train.py` regenerates on every
-run.
+`models/metrics.json`, `models/yield_metrics.json` and `models/price_reference.json`, which each
+build/training script regenerates on every run.
 
 ## Explainable AI
 
@@ -152,16 +166,18 @@ uvicorn app.main:app --reload --port 8000
 ```
 API docs: http://localhost:8000/docs
 
-### 3. Train the ML models (required once, before first use)
+### 3. Train the ML models + build the price reference (required once, before first use)
 ```bash
 # from the backend venv
 python ml/crop_recommendation/train.py
 python ml/yield_prediction/train.py
+python ml/profit_prediction/build_price_reference.py
 ```
-Neither downloads anything at runtime — they read the CSVs already included under
-`ml/datasets/` and write `models/*.joblib` + `models/metrics.json` /
-`models/yield_metrics.json`. The yield script processes ~325k rows and takes noticeably longer
-than the crop-recommendation one (a couple of minutes, mostly Random Forest).
+None of these download anything at runtime — they read the CSVs already included under
+`ml/datasets/` and write `models/*.joblib` + `models/metrics.json` / `models/yield_metrics.json` /
+`models/price_reference.json`. The yield script processes ~325k rows and takes noticeably longer
+than the others (a couple of minutes, mostly Random Forest); the price script depends on the yield
+model being present (profit prediction calls it internally), so run it last.
 
 ### 4. Frontend
 ```bash
@@ -193,6 +209,8 @@ POST   /api/predict/top-crops   (alias: /api/predict/crop)
 POST   /api/explain/crop
 GET    /api/predict/yield/options
 POST   /api/predict/yield
+GET    /api/predict/profit/options
+POST   /api/predict/profit
 GET    /api/models
 GET    /api/models/performance
 GET    /api/history
@@ -218,18 +236,17 @@ Full column definitions: [docs/database.md](docs/database.md).
   joins across `crop_predictions`/`crop_scores`), not just through the API layer.
 - Frontend: `npm run build` (TypeScript project build + Vite production build) passes with zero
   errors. The full user journey (landing → register → dashboard → create farm → soil → crop
-  recommendation → What-If simulation → explanation → yield estimate → model lab → risk → history
-  → roadmap) was driven with a headless Chrome browser against the real backend, with zero
-  console/JS errors, twice (once before and once after fixing the soil-form validation bug below).
-- No automated test suite (`tests/`) has been written yet for this MVP — see Limitations.
+  recommendation → What-If simulation → explanation → yield estimate → profit estimate → model lab
+  → risk → history → roadmap) was driven with a headless Chrome browser against the real backend,
+  with zero console/JS errors, across multiple runs as each Phase 2 module was added.
 
 ## Future Scope
 
-Profit intelligence, water requirement modeling, a trained (not rule-based) risk model, disease
-detection (computer vision), a real LLM/RAG-backed AI assistant, voice interface, multilingual
-support, satellite/NDVI monitoring and IoT sensor ingestion. All have UI shells or clearly-marked
-"roadmap" placeholders already in place. Yield prediction (previously listed here) shipped in
-Phase 2. Details: [docs/future-scope.md](docs/future-scope.md).
+Water requirement modeling, a trained (not rule-based) risk model, disease detection (computer
+vision), a real LLM/RAG-backed AI assistant, voice interface, multilingual support, satellite/NDVI
+monitoring and IoT sensor ingestion. All have UI shells or clearly-marked "roadmap" placeholders
+already in place. Yield and profit prediction (previously listed here) shipped in Phase 2. Details:
+[docs/future-scope.md](docs/future-scope.md).
 
 ## Limitations
 
@@ -242,6 +259,12 @@ Phase 2. Details: [docs/future-scope.md](docs/future-scope.md).
   per-farm forecast — it has no access to an individual farm's soil, irrigation, or this season's
   actual weather. It also only covers 11 of the 22 recommendation-engine crops; the rest honestly
   report "not available" rather than guessing. See `docs/dataset.md` and `docs/ml-methodology.md`.
+- Profit prediction's revenue side uses **real but 2016, non-inflation-adjusted** mandi prices, and
+  only covers 6 crops (the intersection of yield- and price-supported crops). Its cost side is
+  **farmer-supplied, not modeled** — no honest public per-farm cost-of-cultivation dataset was
+  found; inventing one would violate this project's own "never fabricate" rule. See
+  `docs/dataset.md` and `docs/ml-methodology.md` for what was searched and why this design was
+  chosen instead.
 - No automated backend/frontend test suite yet (manual + scripted E2E verification only).
 - Single active model at inference time per module (Random Forest for crop recommendation, XGBoost
   for yield); the other trained models are kept only for their comparison pages, not served live.

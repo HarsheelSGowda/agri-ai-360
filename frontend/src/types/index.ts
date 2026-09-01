@@ -149,6 +149,30 @@ export interface YieldPredictionResponse {
   reason: string | null
 }
 
+export interface ProfitOptionsResponse {
+  supported_crops: string[]
+  price_year: string
+}
+
+export interface ProfitPredictionResponse {
+  supported: boolean
+  crop: string
+  mapped_crop: string | null
+  state: string | null
+  season: string | null
+  yield_tonnes_per_ha: number | null
+  price_rs_per_quintal: number | null
+  price_source: 'state' | 'national_fallback' | null
+  cost_per_acre: number | null
+  revenue_per_acre: number | null
+  profit_per_acre: number | null
+  revenue_per_ha: number | null
+  profit_per_ha: number | null
+  margin_pct: number | null
+  total_farm_profit: number | null
+  reason: string | null
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'
