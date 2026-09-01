@@ -17,7 +17,13 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
   honest per-farm cost dataset was found — see `docs/dataset.md`). Live at `POST /predict/profit`,
   surfaced right under the yield estimate on the recommendation detail page. Covers 6 crops (the
   intersection of yield-supported crops and price-supported crops).
-- **Water Requirement** — crop-water-need estimation, combined with the existing water-risk signal.
+- ✅ **Water Requirement** — FAO Blaney-Criddle reference evapotranspiration (real, published
+  formula + tables, fetched and parsed directly from the primary FAO sources) × FAO-56 crop
+  coefficients, minus USDA SCS effective rainfall. Live at `POST /predict/water`, surfaced on the
+  recommendation detail page alongside yield and profit. Covers 17 of 22 crops (13 crop-specific +
+  4 generic-legume FAO-56 category values); see `docs/dataset.md` for exactly which and a
+  documented case where a self-derived approximation was caught and replaced with the real source
+  table after producing a ~3.7x-too-high result.
 - **Risk Prediction (ML-based)** — replace/augment the current rule-based `risk_service.py` with a
   trained model once labeled risk/outcome data is available.
 

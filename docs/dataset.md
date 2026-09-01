@@ -152,3 +152,62 @@ reports chickpea profit as unsupported.
   above or below their state's median. When a crop has no recorded trades at all in the selected
   state, the app falls back to the national median and labels that explicitly
   (`price_source: "national_fallback"`).
+
+## 4. Water Requirement (Phase 2)
+
+### Source
+
+Two official FAO documents, fetched directly and parsed programmatically (not transcribed from
+memory) — both saved locally under [`ml/datasets/fao56/`](../ml/datasets/fao56/):
+
+- **FAO Irrigation and Drainage Paper No. 56** (Allen, Pereira, Raes & Smith, 1998), Chapter 6,
+  **Table 12** — "Single (time-averaged) crop coefficients, Kc" — fetched from
+  `https://www.fao.org/4/x0490e/x0490e0b.htm`, saved as `fao56_chapter6_table12.html`, extracted by
+  [`ml/water_requirement/build_kc_reference.py`](../ml/water_requirement/build_kc_reference.py) into
+  `models/water_kc_reference.json`.
+- **FAO "Crop Water Needs"** (Irrigation Water Management Training Manual No. 3), Chapter 3,
+  **Table 4** — "Mean daily percentage (p) of annual daytime hours for different latitudes" —
+  fetched from `https://www.fao.org/4/s2022e/s2022e07.htm`, saved as
+  `fao_blaney_criddle_table4.html`, extracted by
+  [`ml/water_requirement/build_p_reference.py`](../ml/water_requirement/build_p_reference.py) into
+  `models/water_p_reference.json`.
+
+### Crop coefficients (Kc) — 17 crops covered
+
+13 crops have a **crop-specific** Table 12 row (rice, maize, chickpea, mungbean, lentil, cotton,
+banana, grapes, watermelon, muskmelon [mapped to the botanically identical "Cantaloupe" row],
+apple, orange, coffee). 4 more (kidneybeans, blackgram, pigeonpeas, mothbeans) have no
+crop-specific row, so FAO-56's own generic **"Beans, dry and Pulses"** group value is used instead
+— this is FAO-56's documented intent for its group structure, not an invented substitution, and the
+API/UI label these explicitly as `"category": "generic_legume"`. 5 crops (pomegranate, mango,
+papaya, coconut, jute) have neither a specific row nor a defensible generic category and are
+reported as unsupported.
+
+### An honesty note on how this module's formula was chosen
+
+An earlier implementation tried to derive the Blaney-Criddle "p" factor from pure solar-geometry
+day length (day length ÷ 12) instead of using FAO's own table. That produced a reference ET₀ of
+**~23 mm/day** for a real July/Nagpur test case — physically implausible (real-world ET₀ rarely
+exceeds ~8–10 mm/day even in extreme desert heat) and roughly 3–4× higher than the ~6 mm/day the
+real FAO Table 4 gives for the same input. Rather than ship a self-derived formula that looked
+plausible but was empirically wrong, the module was rebuilt to fetch and parse FAO's actual
+published Table 4. This is recorded here deliberately: a formula "written correctly" from a
+half-remembered principle is still a fabrication risk if it isn't checked against a real,
+citable source — checking is what caught it.
+
+### Known limitations
+
+- **State-level, not GPS-level, latitude.** Each state's representative latitude is its capital
+  city's coordinates (real, verifiable geography), not the farm's actual location — the app only
+  collects free-text location, not GPS.
+- **Interpolated, not tabulated, latitude bands.** FAO Table 4 is tabulated in 5° latitude steps;
+  values between steps are linearly interpolated (`app/services/water_service.py::_lookup_p`).
+- **Blaney-Criddle is explicitly a rough method.** FAO's own documentation for this formula states
+  it "is not very accurate; it provides a rough estimate... only," and can be off by up to ~40-60%
+  in extreme wind/humidity conditions the formula doesn't account for. This is a planning-level
+  estimate, not a substitute for local agronomic advice — stated in the UI on every result.
+  Penman-Monteith (FAO-56's primary recommended method) would be more accurate but requires wind
+  speed, solar radiation and humidity data this app's weather layer doesn't provide.
+- **Only mid-season (peak) crop coefficient is used.** Kc changes through a crop's growth stages
+  (initial/development/mid-season/late-season); this module only uses Kc_mid (peak water demand),
+  not a full-season water-balance curve, since the app doesn't collect planting dates.

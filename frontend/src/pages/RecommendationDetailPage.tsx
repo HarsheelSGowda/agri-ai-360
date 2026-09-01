@@ -7,6 +7,7 @@ import { LoadingAnimation } from '@/components/LoadingAnimation'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { YieldEstimator } from '@/components/YieldEstimator'
+import { WaterEstimator } from '@/components/WaterEstimator'
 import { explainCrop } from '@/services/predictionService'
 import { apiErrorMessage } from '@/services/api'
 import { useFarmStore } from '@/hooks/useFarmStore'
@@ -116,6 +117,7 @@ export function RecommendationDetailPage() {
       </GlassCard>
 
       <YieldEstimator crop={explanation.crop} />
+      <WaterEstimator crop={explanation.crop} />
     </div>
   )
 }

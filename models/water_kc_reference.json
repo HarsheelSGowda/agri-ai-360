@@ -1,0 +1,121 @@
+{
+  "rice": {
+    "kc_mid": 1.2,
+    "kc_mid_raw_table_value": "1.20",
+    "fao56_row": "Rice",
+    "category": "specific",
+    "note": null
+  },
+  "maize": {
+    "kc_mid": 1.2,
+    "kc_mid_raw_table_value": "1.20",
+    "fao56_row": "Maize, Field (grain)(field corn)",
+    "category": "specific",
+    "note": null
+  },
+  "chickpea": {
+    "kc_mid": 1.0,
+    "kc_mid_raw_table_value": "1.00",
+    "fao56_row": "Chick pea",
+    "category": "specific",
+    "note": null
+  },
+  "mungbean": {
+    "kc_mid": 1.05,
+    "kc_mid_raw_table_value": "1.05",
+    "fao56_row": "Green Gram and Cowpeas",
+    "category": "specific",
+    "note": null
+  },
+  "lentil": {
+    "kc_mid": 1.1,
+    "kc_mid_raw_table_value": "1.10",
+    "fao56_row": "Lentil",
+    "category": "specific",
+    "note": null
+  },
+  "cotton": {
+    "kc_mid": 1.175,
+    "kc_mid_raw_table_value": "1.15-1.20",
+    "fao56_row": "Cotton",
+    "category": "specific",
+    "note": "Table 12 gives a range (1.15-1.20); midpoint used."
+  },
+  "banana": {
+    "kc_mid": 1.2,
+    "kc_mid_raw_table_value": "1.20",
+    "fao56_row": "Banana",
+    "category": "specific",
+    "note": "Year-2 (mature plant) row used."
+  },
+  "grapes": {
+    "kc_mid": 0.85,
+    "kc_mid_raw_table_value": "0.85",
+    "fao56_row": "Grapes",
+    "category": "specific",
+    "note": "Table/raisin variety row used (not wine grapes)."
+  },
+  "watermelon": {
+    "kc_mid": 1.0,
+    "kc_mid_raw_table_value": "1.00",
+    "fao56_row": "Watermelon",
+    "category": "specific",
+    "note": null
+  },
+  "muskmelon": {
+    "kc_mid": 0.85,
+    "kc_mid_raw_table_value": "0.85",
+    "fao56_row": "Cantaloupe",
+    "category": "specific",
+    "note": "Botanically the same species (Cucumis melo) as muskmelon."
+  },
+  "apple": {
+    "kc_mid": 0.95,
+    "kc_mid_raw_table_value": "0.95",
+    "fao56_row": "Apples, Cherries, Pears19",
+    "category": "specific",
+    "note": "'No ground cover' row used; Kc_mid is stable across the frost/no-frost variants."
+  },
+  "orange": {
+    "kc_mid": 0.65,
+    "kc_mid_raw_table_value": "0.65",
+    "fao56_row": "Citrus, no ground cover21",
+    "category": "specific",
+    "note": "70% canopy (mature orchard) row used."
+  },
+  "coffee": {
+    "kc_mid": 0.95,
+    "kc_mid_raw_table_value": "0.95",
+    "fao56_row": "Coffee",
+    "category": "specific",
+    "note": "'Bare ground cover' row used (not the 'with weeds' variant)."
+  },
+  "kidneybeans": {
+    "kc_mid": 1.15,
+    "kc_mid_raw_table_value": "1.152",
+    "fao56_row": "Beans, dry and Pulses",
+    "category": "generic_legume",
+    "note": null
+  },
+  "blackgram": {
+    "kc_mid": 1.15,
+    "kc_mid_raw_table_value": "1.152",
+    "fao56_row": "Beans, dry and Pulses",
+    "category": "generic_legume",
+    "note": null
+  },
+  "pigeonpeas": {
+    "kc_mid": 1.15,
+    "kc_mid_raw_table_value": "1.152",
+    "fao56_row": "Beans, dry and Pulses",
+    "category": "generic_legume",
+    "note": null
+  },
+  "mothbeans": {
+    "kc_mid": 1.15,
+    "kc_mid_raw_table_value": "1.152",
+    "fao56_row": "Beans, dry and Pulses",
+    "category": "generic_legume",
+    "note": null
+  }
+}

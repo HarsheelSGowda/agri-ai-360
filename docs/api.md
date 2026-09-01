@@ -76,6 +76,21 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   underlying yield estimate itself isn't supported. `422` for a negative `cost_per_acre`. `503` if
   `ml/profit_prediction/build_price_reference.py` hasn't been run yet.
 
+## Water Requirement (Phase 2)
+
+- `GET /predict/water/options` → `{ supported_crops: [...17], states: [...37] }`.
+
+- `POST /predict/water` — `{ crop, state, temperature_c, rainfall_mm, date?, area_acres?, farm_id? }`
+  → `{ supported: bool, crop, kc_mid, kc_category: "specific" | "generic_legume", kc_source_row,
+  kc_note, state, latitude_deg, month, p_value, reference_et0_mm_per_day, crop_water_use_mm_per_day,
+  effective_rainfall_mm_per_day, net_irrigation_mm_per_day, net_irrigation_liters_per_acre_per_day,
+  net_irrigation_liters_total_per_day, reason }`. `date` defaults to today (only the month is used,
+  matching the FAO p-table's monthly granularity). Computes reference ET₀ via the FAO
+  Blaney-Criddle formula, multiplies by the crop's FAO-56 Kc_mid, and subtracts effective rainfall
+  (USDA SCS formula) — see `docs/ml-methodology.md` for the exact formula chain. `supported` is
+  `false` (with `reason`) for a crop without Kc data or an unrecognized state. `503` if
+  `ml/water_requirement/build_kc_reference.py` / `build_p_reference.py` haven't been run yet.
+
 ## Models
 
 - `GET /models` — trained model names + active model.

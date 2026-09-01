@@ -1,0 +1,22 @@
+{
+  "source": "FAO Irrigation Water Management Training Manual No. 3, 'Crop Water Needs', Table 4",
+  "source_url": "https://www.fao.org/4/s2022e/s2022e07.htm",
+  "local_copy": "ml\\datasets\\fao56\\fao_blaney_criddle_table4.html",
+  "formula": "ETo = p x (0.46 x Tmean + 8)  [mm/day]",
+  "built_at": "2026-09-01T21:00:28.845965+00:00",
+  "latitude_bands_deg_north": [
+    60,
+    55,
+    50,
+    45,
+    40,
+    35,
+    30,
+    25,
+    20,
+    15,
+    10,
+    5,
+    0
+  ]
+}

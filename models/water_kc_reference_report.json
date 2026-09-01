@@ -1,0 +1,32 @@
+{
+  "source": "FAO Irrigation and Drainage Paper No. 56 (Allen et al., 1998), Chapter 6, Table 12",
+  "source_url": "https://www.fao.org/4/x0490e/x0490e0b.htm",
+  "local_copy": "ml\\datasets\\fao56\\fao56_chapter6_table12.html",
+  "built_at": "2026-09-01T20:56:46.488815+00:00",
+  "supported_crops": [
+    "apple",
+    "banana",
+    "blackgram",
+    "chickpea",
+    "coffee",
+    "cotton",
+    "grapes",
+    "kidneybeans",
+    "lentil",
+    "maize",
+    "mothbeans",
+    "mungbean",
+    "muskmelon",
+    "orange",
+    "pigeonpeas",
+    "rice",
+    "watermelon"
+  ],
+  "unsupported_crops": [
+    "coconut",
+    "jute",
+    "mango",
+    "papaya",
+    "pomegranate"
+  ]
+}

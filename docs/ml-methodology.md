@@ -175,3 +175,54 @@ guess, at whichever stage (yield or price) is actually missing.
 - Every profit estimate in the UI states its price year, price source (state-specific vs. national
   fallback), and that cost is farmer-supplied — nothing is presented as more authoritative than it
   actually is.
+
+# Part 4 — Water Requirement (Phase 2)
+
+## Formula
+
+```
+ETo (mm/day) = p x (0.46 x Tmean + 8)                    [FAO Blaney-Criddle, exact published form]
+    p        = FAO Table 4, looked up by (latitude, month), linearly interpolated between
+               the table's 5-degree latitude bands
+ETc (mm/day) = ETo x Kc_mid(crop)                          [FAO-56 Table 12, mid-season coefficient]
+Effective rainfall (mm/day) = USDA SCS formula:
+    P <= 250mm:  Peff = P x (125 - 0.2P) / 125
+    P  > 250mm:  Peff = 125 + 0.1P
+Net irrigation (mm/day) = max(0, ETc - Peff)
+```
+
+Implementation: [`app/services/water_service.py`](../backend/app/services/water_service.py).
+Reference tables built by
+[`ml/water_requirement/build_kc_reference.py`](../ml/water_requirement/build_kc_reference.py) and
+[`ml/water_requirement/build_p_reference.py`](../ml/water_requirement/build_p_reference.py).
+
+## Why this isn't a "trained model" either, and why that's the right call here
+
+Crop water requirement is governed by well-established agronomic physics (evapotranspiration
+theory), not a pattern to be learned from a dataset — using a published formula with published
+reference coefficients *is* the scientifically correct approach, not a shortcut. The only things
+this module needed to get right were (a) using the *actual* published formula and tables rather
+than an approximation, and (b) being honest about which crops those tables actually cover.
+
+## A documented mistake, corrected in-repo (not just claimed here)
+
+The first implementation approximated FAO's tabulated "p" factor using solar-geometry day length
+(`day_length_hours / 12`) instead of looking up the real table, reasoning that day length is a
+reasonable physical proxy for "percentage of annual daytime hours." It wasn't: for a July/Nagpur
+test case (28°C, ~19°N) it produced **ETo ≈ 22.8 mm/day**, compared to **ETo ≈ 6.2 mm/day** from
+FAO's actual Table 4 for the identical input — a ~3.7x error, and physically implausible on its
+face (real-world ET₀ essentially never exceeds ~8-10 mm/day). The fix was to fetch FAO's real
+Table 4 (the same primary-source-extraction approach used for Table 12 and for the yield/profit
+datasets) rather than trust a derivation that merely *sounded* physically reasonable. This is
+recorded in `docs/dataset.md` and in `water_service.py`'s own docstring as a durable reminder: a
+formula that seems like a correct simplification is still a fabrication risk until it's checked
+against the real source it's supposed to approximate.
+
+## Known scope limits
+
+- Only Kc_mid (peak/mid-season demand) is used — not a full growth-stage water-balance curve (no
+  planting date is collected).
+- Blaney-Criddle is FAO's own "rough estimate only" method, not its recommended Penman-Monteith
+  (which needs wind, solar radiation and humidity data this app doesn't collect).
+- 17 of 22 recommendation-engine crops are covered; see `docs/dataset.md` for exactly which and why
+  the other 5 aren't.

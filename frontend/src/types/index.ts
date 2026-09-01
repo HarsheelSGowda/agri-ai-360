@@ -173,6 +173,31 @@ export interface ProfitPredictionResponse {
   reason: string | null
 }
 
+export interface WaterOptionsResponse {
+  supported_crops: string[]
+  states: string[]
+}
+
+export interface WaterRequirementResponse {
+  supported: boolean
+  crop: string
+  kc_mid: number | null
+  kc_category: 'specific' | 'generic_legume' | null
+  kc_source_row: string | null
+  kc_note: string | null
+  state: string | null
+  latitude_deg: number | null
+  month: string | null
+  p_value: number | null
+  reference_et0_mm_per_day: number | null
+  crop_water_use_mm_per_day: number | null
+  effective_rainfall_mm_per_day: number | null
+  net_irrigation_mm_per_day: number | null
+  net_irrigation_liters_per_acre_per_day: number | null
+  net_irrigation_liters_total_per_day: number | null
+  reason: string | null
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'
