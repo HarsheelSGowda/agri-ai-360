@@ -1,0 +1,82 @@
+# API Reference
+
+Base URL: `http://localhost:8000/api` (proxied through the frontend dev server at `/api`).
+Interactive docs: `http://localhost:8000/docs` (FastAPI auto-generated Swagger UI).
+
+All endpoints except `/auth/register` and `/auth/login` require `Authorization: Bearer <token>`.
+
+## Auth
+
+### `POST /auth/register`
+```json
+{ "name": "Ramesh Patil", "email": "ramesh@farm.com", "password": "secret123",
+  "location": "Nagpur, Maharashtra", "preferred_language": "English" }
+```
+→ `201` `{ access_token, token_type, user }`. `409` if the email already exists.
+
+### `POST /auth/login`
+```json
+{ "email": "ramesh@farm.com", "password": "secret123" }
+```
+→ `200` `{ access_token, token_type, user }`. `401` on bad credentials.
+
+## Farms
+
+- `POST /farms` — `{ name, location, area_acres, soil_type, irrigation_available }` → `201` Farm.
+- `GET /farms` — list the current farmer's farms.
+- `GET /farms/{id}` — `404` if not owned by the current farmer.
+- `POST /farms/{id}/soil` — `{ nitrogen, phosphorus, potassium, ph, soil_type, organic_carbon?,
+  moisture?, electrical_conductivity? }` → `201` soil record + computed `health` (score,
+  per-nutrient breakdown, generated insights).
+- `GET /farms/{id}/soil` — latest soil record + health, or `null` if none submitted yet.
+
+## Weather
+
+- `GET /weather?location=...` → `{ temperature_c, humidity_pct, rainfall_mm, wind_kmh, condition,
+  forecast: [...], source: "mock" | "live" }`. `source` is always present so the UI can label mock
+  data honestly.
+
+## Prediction
+
+- `POST /predict/top-crops` (alias `POST /predict/crop`) —
+  `{ nitrogen, phosphorus, potassium, temperature, humidity, ph, rainfall, farm_id? }` →
+  `{ top_crops: [{ crop, probability, confidence }] (top 5), model_used, model_version, input }`.
+  If `farm_id` is supplied and owned by the caller, the prediction + top-5 breakdown is persisted
+  to `crop_predictions` / `crop_scores` for the History page. `503` if no trained model is found.
+
+- `POST /explain/crop` — same body as above plus `{ "crop": "rice" }` →
+  `{ crop, contributions: [{ feature, value, contribution }], base_value, predicted_value,
+  narrative, method: "shap" }`. `400` for an unknown crop name, `503` if the active model isn't a
+  tree-based model SHAP's `TreeExplainer` supports.
+
+## Models
+
+- `GET /models` — trained model names + active model.
+- `GET /models/performance` — full comparison table (`accuracy/precision/recall/F1` or
+  `"status": "not_evaluated"` per algorithm), dataset provenance, feature importance and confusion
+  matrix for the active model.
+
+## History
+
+- `GET /history?farm_id=` (optional filter) → list of past predictions with farm name, crop,
+  score, soil/weather summary strings, newest first (max 100).
+
+## Risk
+
+- `GET /risk?farm_id=` → `{ overall, weather_risk, soil_risk, water_risk, disease_risk, notes,
+  is_prototype: true }`. Always rule-based and always flagged `is_prototype`.
+
+## Dashboard
+
+- `GET /dashboard/{farm_id}` → combined `{ farm, soil_health, weather, farm_health, risk }` for the
+  main dashboard view — one call instead of four.
+
+## Health
+
+- `GET /health` → `{ status: "ok", service: "agri-ai-360-backend" }` (no auth required).
+
+## Error format
+
+Validation errors: `422` with `{ "detail": [...] }` (FastAPI/Pydantic default shape). All other
+handled errors: `{ "detail": "human-readable message" }` with the matching HTTP status
+(`401`, `403`, `404`, `409`, `503`).

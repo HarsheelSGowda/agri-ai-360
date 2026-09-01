@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --color-abyss: #030b06;
+  --color-forest-950: #04150c;
+  --color-forest-900: #071f13;
+  --color-forest-800: #0b2c1c;
+  --color-forest-700: #123a25;
+  --color-forest-600: #1a4c32;
+  --color-glow-emerald: #10b981;
+  --color-glow-lime: #a3e635;
+  --font-display: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 15% 0%, #0b2c1c 0%, #04150c 45%, #030b06 100%);
+  color: #eaf7ef;
+  font-family: var(--font-display);
+  min-height: 100vh;
+}
+
+@layer components {
+  .glass-card {
+    @apply relative rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.35)];
+  }
+
+  .glass-card-hover {
+    @apply transition-all duration-300 hover:border-emerald-400/30 hover:bg-white/[0.06] hover:shadow-[0_8px_40px_rgba(16,185,129,0.15)];
+  }
+
+  .glow-text {
+    text-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-lime-400 px-6 py-3 font-semibold text-forest-950 shadow-[0_0_30px_rgba(16,185,129,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 font-semibold text-white/90 backdrop-blur-md transition-all duration-200 hover:border-emerald-400/40 hover:bg-white/10;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-emerald-400/50 focus:bg-white/[0.06];
+  }
+
+  .label-field {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/50;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.8s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25);
+  border-radius: 999px;
+}
