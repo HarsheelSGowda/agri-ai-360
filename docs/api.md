@@ -49,6 +49,19 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   narrative, method: "shap" }`. `400` for an unknown crop name, `503` if the active model isn't a
   tree-based model SHAP's `TreeExplainer` supports.
 
+## Yield Prediction (Phase 2)
+
+- `GET /predict/yield/options` → `{ states: [...37], seasons: [...6], supported_crops: [...11,
+  recommendation-engine names], dataset_records, active_model, active_model_r2 }`. Drives the
+  frontend's state/season dropdowns and which crops show a yield estimator at all.
+
+- `POST /predict/yield` — `{ crop, state, season, farm_id? }` →
+  `{ supported: bool, crop, mapped_crop, state, season, predicted_yield_tonnes_per_ha,
+  predicted_yield_quintal_per_acre, model_used, r2_score, mae, reason }`. When `crop` isn't one of
+  the 11 mapped crops, or `state`/`season` isn't in the training data, `supported` is `false` and
+  `reason` explains why — the prediction fields are `null` rather than a guess. `503` if the yield
+  model hasn't been trained (`ml/yield_prediction/train.py` hasn't been run).
+
 ## Models
 
 - `GET /models` — trained model names + active model.

@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, dashboard, farms, history, models_router, predict, risk, weather
+from app.api import auth, dashboard, farms, history, models_router, predict, risk, weather, yield_router
 from app.core.config import settings
 from app.database.base import Base
 from app.database.session import engine
@@ -47,3 +47,4 @@ app.include_router(models_router.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
 app.include_router(risk.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(yield_router.router, prefix="/api")

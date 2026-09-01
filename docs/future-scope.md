@@ -7,8 +7,11 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
 ✅ Farmer Dashboard · ✅ Model Comparison · ✅ Risk Summary (rule-based) · ✅ History · ✅ What-If AI
 
 ## Phase 2
-- **Yield Prediction** — regression model (likely Gradient Boosting/XGBoost regressor) trained on
-  yield-labeled agronomic data; architecture slot already reserved at `ml/yield_prediction/`.
+- ✅ **Yield Prediction** — real XGBoost regressor (R²=0.919) trained on 325k India district-level
+  crop production records (1997–2020), predicting expected yield (t/ha) from state, crop and
+  season. Live at `POST /predict/yield`, surfaced on the crop recommendation detail page. Covers
+  11 of the 22 recommendation-engine crops (see `docs/dataset.md` for the full crop mapping and
+  its limitations — it's a regional-historical estimate, not a per-farm forecast).
 - **Profit Prediction** — combine predicted yield with input-cost and market-price data.
 - **Water Requirement** — crop-water-need estimation, combined with the existing water-risk signal.
 - **Risk Prediction (ML-based)** — replace/augment the current rule-based `risk_service.py` with a

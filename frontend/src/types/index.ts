@@ -126,6 +126,29 @@ export interface PredictionHistoryItem {
   weather_summary: string
 }
 
+export interface YieldOptionsResponse {
+  states: string[]
+  seasons: string[]
+  supported_crops: string[]
+  dataset_records: number
+  active_model: string | null
+  active_model_r2: number | null
+}
+
+export interface YieldPredictionResponse {
+  supported: boolean
+  crop: string
+  mapped_crop: string | null
+  state: string | null
+  season: string | null
+  predicted_yield_tonnes_per_ha: number | null
+  predicted_yield_quintal_per_acre: number | null
+  model_used: string | null
+  r2_score: number | null
+  mae: number | null
+  reason: string | null
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'

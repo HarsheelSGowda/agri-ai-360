@@ -18,7 +18,7 @@ const capabilities = [
   { icon: FlaskConical, title: 'Soil Intelligence', desc: 'N-P-K, pH and soil-type analysis with an explainable health score.', live: true },
   { icon: CloudSun, title: 'Weather Intelligence', desc: 'Live conditions and short-range forecast feeding the recommendation engine.', live: true },
   { icon: BrainCircuit, title: 'Explainable AI', desc: 'SHAP-powered "why this crop" breakdown for every recommendation.', live: true },
-  { icon: TrendingUp, title: 'Yield Prediction', desc: 'Forecast expected yield per acre for the recommended crop.', live: false },
+  { icon: TrendingUp, title: 'Yield Prediction', desc: 'Real ML yield estimate (t/ha) from state, season and crop history.', live: true },
   { icon: DollarSign, title: 'Profit Intelligence', desc: 'Estimate input cost vs. expected return.', live: false },
   { icon: Stethoscope, title: 'Disease Detection', desc: 'Computer-vision leaf disease diagnosis from a photo.', live: false },
   { icon: MessageCircle, title: 'AI Assistant', desc: 'Conversational farm advisor grounded in your own data.', live: false },

@@ -6,6 +6,7 @@ import { SHAPChart } from '@/charts/SHAPChart'
 import { LoadingAnimation } from '@/components/LoadingAnimation'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
+import { YieldEstimator } from '@/components/YieldEstimator'
 import { explainCrop } from '@/services/predictionService'
 import { apiErrorMessage } from '@/services/api'
 import { useFarmStore } from '@/hooks/useFarmStore'
@@ -113,6 +114,8 @@ export function RecommendationDetailPage() {
         <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm leading-relaxed text-white/70">{explanation.narrative}</p>
         <p className="mt-3 text-[11px] text-white/30">Powered by Explainable AI (SHAP) · values computed from the trained model, not templated text.</p>
       </GlassCard>
+
+      <YieldEstimator crop={explanation.crop} />
     </div>
   )
 }

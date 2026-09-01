@@ -4,13 +4,13 @@
 
 Final-year Computer Science and Engineering major project.
 
-> **Status: ~50% MVP.** Crop recommendation, soil intelligence, weather, explainable AI (SHAP),
-> model comparison, risk summary, history and the What-If simulator are real and working end to
-> end. Yield/profit prediction, disease detection, the AI assistant, voice, and satellite/IoT are
-> intentionally **not implemented** — see [Future Scope](docs/future-scope.md) and the in-app
-> AI Roadmap page. Nothing in this build fabricates a metric or a prediction: every number shown
-> comes from a trained model, a documented rule-based calculation, or is explicitly labeled as a
-> mock/prototype.
+> **Status: MVP + Phase 2 (Yield Prediction).** Crop recommendation, soil intelligence, weather,
+> explainable AI (SHAP), model comparison, risk summary, history, the What-If simulator, and now
+> yield prediction are real and working end to end. Profit prediction, disease detection, the AI
+> assistant, voice, and satellite/IoT are intentionally **not implemented** — see
+> [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page. Nothing in this build
+> fabricates a metric or a prediction: every number shown comes from a trained model, a documented
+> rule-based calculation, or is explicitly labeled as a mock/prototype.
 
 ---
 
@@ -46,6 +46,10 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
 - Rule-based, explicitly-labeled-as-prototype risk dashboard (weather/soil/water/disease risk).
 - Recommendation history persisted per farm.
 - **What-If AI**: change inputs, re-run the real model, see a before/after ranking change.
+- **Yield Prediction** (Phase 2): real XGBoost regressor (R²=0.919) trained on 325k India
+  district-level crop production records, estimating expected yield (t/ha) from state, crop and
+  season — shown on the recommendation detail page for the 11 crops it has real training data for;
+  honestly reports "not available" for the rest rather than guessing.
 - AI Roadmap page showing what's implemented vs. planned.
 - UI shells (clearly marked "coming in Phase 2/3") for Crop Doctor (disease detection) and the AI
   Agriculture Assistant — no fake model or LLM behind them.
@@ -78,19 +82,23 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown.
 
 ## Dataset
 
-**Crop Recommendation Dataset** — 2,200 records, 22 crop classes, 7 numeric features
-(N, P, K, temperature, humidity, ph, rainfall → crop label). Publicly available and widely used
-for this exact task (originally published on Kaggle by Atharva Ingle). Full provenance,
-column definitions and known limitations are documented in [docs/dataset.md](docs/dataset.md).
+Two independent public datasets, one per ML module (full provenance and limitations in
+[docs/dataset.md](docs/dataset.md)):
+
+- **Crop Recommendation Dataset** — 2,200 records, 22 crop classes, 7 numeric features
+  (N, P, K, temperature, humidity, ph, rainfall → crop label). Originally published on Kaggle by
+  Atharva Ingle.
+- **India Crop Production records** — 325k district-level rows (state, crop, season, year → yield),
+  1997–2020, sourced from a public mirror of India's crop-production statistics. Used for Phase 2
+  yield prediction.
 
 ## ML Methodology
 
-Four classifiers are trained on an 80/20 stratified split (see
-[ml/crop_recommendation/train.py](ml/crop_recommendation/train.py)) and evaluated with accuracy,
-precision, recall, F1 and 5-fold cross-validation. **Random Forest is the active model**
-(highest test accuracy). Full methodology: [docs/ml-methodology.md](docs/ml-methodology.md).
+Full methodology for both modules: [docs/ml-methodology.md](docs/ml-methodology.md).
 
-**Actual results from the last training run** (see `models/metrics.json` for the source of truth):
+**Crop Recommendation** — four classifiers trained on an 80/20 stratified split
+([ml/crop_recommendation/train.py](ml/crop_recommendation/train.py)), evaluated with accuracy,
+precision, recall, F1 and 5-fold CV. **Random Forest is the active model** (highest test accuracy).
 
 | Algorithm | Accuracy | Precision | Recall | F1 |
 |---|--:|--:|--:|--:|
@@ -99,8 +107,19 @@ precision, recall, F1 and 5-fold cross-validation. **Random Forest is the active
 | XGBoost | 98.64% | 98.74% | 98.64% | 98.62% |
 | SVM | 98.41% | 98.66% | 98.41% | 98.39% |
 
-These numbers are not hardcoded in the API or UI — they are read live from `models/metrics.json`,
-which `train.py` regenerates every time it runs.
+**Yield Prediction (Phase 2)** — three regressors trained on an 80/20 split
+([ml/yield_prediction/train.py](ml/yield_prediction/train.py)), evaluated with R², MAE, RMSE.
+**XGBoost is the active model.**
+
+| Algorithm | R² | MAE (t/ha) | RMSE (t/ha) |
+|---|--:|--:|--:|
+| XGBoost | 0.919 | 1.03 | 3.51 |
+| Random Forest | 0.919 | 1.03 | 3.51 |
+| Gradient Boosting | 0.793 | 2.09 | 5.63 |
+
+None of these numbers are hardcoded in the API or UI — they are read live from
+`models/metrics.json` and `models/yield_metrics.json`, which each `train.py` regenerates on every
+run.
 
 ## Explainable AI
 
@@ -137,9 +156,12 @@ API docs: http://localhost:8000/docs
 ```bash
 # from the backend venv
 python ml/crop_recommendation/train.py
+python ml/yield_prediction/train.py
 ```
-This downloads nothing at runtime — it reads `ml/datasets/crop_recommendation.csv` (already
-included) and writes `models/*.joblib` + `models/metrics.json`.
+Neither downloads anything at runtime — they read the CSVs already included under
+`ml/datasets/` and write `models/*.joblib` + `models/metrics.json` /
+`models/yield_metrics.json`. The yield script processes ~325k rows and takes noticeably longer
+than the crop-recommendation one (a couple of minutes, mostly Random Forest).
 
 ### 4. Frontend
 ```bash
@@ -169,6 +191,8 @@ GET    /api/farms/{id}/soil
 GET    /api/weather
 POST   /api/predict/top-crops   (alias: /api/predict/crop)
 POST   /api/explain/crop
+GET    /api/predict/yield/options
+POST   /api/predict/yield
 GET    /api/models
 GET    /api/models/performance
 GET    /api/history
@@ -186,21 +210,26 @@ Full column definitions: [docs/database.md](docs/database.md).
 ## Testing
 
 - Backend: end-to-end flow (register → login → create farm → submit soil → predict → explain →
-  model performance → history → risk → dashboard) was manually verified against a running
-  `uvicorn` instance with real HTTP requests (see repo history / dev notes).
+  model performance → history → risk → dashboard → yield prediction) was manually verified against
+  a running `uvicorn` instance with real HTTP requests, including negative paths (duplicate email,
+  wrong password, missing/garbage token, out-of-range soil values, unknown crop/state/season) —
+  see repo history / dev notes.
+- Database persistence was verified directly against the SQLite file (row counts, foreign-key
+  joins across `crop_predictions`/`crop_scores`), not just through the API layer.
 - Frontend: `npm run build` (TypeScript project build + Vite production build) passes with zero
   errors. The full user journey (landing → register → dashboard → create farm → soil → crop
-  recommendation → What-If simulation → explanation → model lab → risk → history → roadmap) was
-  driven with a headless Chrome browser against the real backend, with zero console/JS errors.
+  recommendation → What-If simulation → explanation → yield estimate → model lab → risk → history
+  → roadmap) was driven with a headless Chrome browser against the real backend, with zero
+  console/JS errors, twice (once before and once after fixing the soil-form validation bug below).
 - No automated test suite (`tests/`) has been written yet for this MVP — see Limitations.
 
 ## Future Scope
 
-Yield prediction, profit intelligence, water requirement modeling, a trained (not rule-based)
-risk model, disease detection (computer vision), a real LLM/RAG-backed AI assistant, voice
-interface, multilingual support, satellite/NDVI monitoring and IoT sensor ingestion. All have UI
-shells or clearly-marked "roadmap" placeholders already in place. Details:
-[docs/future-scope.md](docs/future-scope.md).
+Profit intelligence, water requirement modeling, a trained (not rule-based) risk model, disease
+detection (computer vision), a real LLM/RAG-backed AI assistant, voice interface, multilingual
+support, satellite/NDVI monitoring and IoT sensor ingestion. All have UI shells or clearly-marked
+"roadmap" placeholders already in place. Yield prediction (previously listed here) shipped in
+Phase 2. Details: [docs/future-scope.md](docs/future-scope.md).
 
 ## Limitations
 
@@ -209,9 +238,13 @@ shells or clearly-marked "roadmap" placeholders already in place. Details:
   is architected for that (see `backend/app/services/weather_provider.py`).
 - The soil-health scoring and the farm-risk dashboard are **transparent rule-based systems**, not
   trained models — labeled "prototype assessment" everywhere they appear in the UI.
+- Yield prediction is a **regional-historical estimate** (state + crop + season, 1997–2020), not a
+  per-farm forecast — it has no access to an individual farm's soil, irrigation, or this season's
+  actual weather. It also only covers 11 of the 22 recommendation-engine crops; the rest honestly
+  report "not available" rather than guessing. See `docs/dataset.md` and `docs/ml-methodology.md`.
 - No automated backend/frontend test suite yet (manual + scripted E2E verification only).
-- Single active model at inference time (Random Forest); the other three trained models are kept
-  only for the comparison page, not served for live predictions.
+- Single active model at inference time per module (Random Forest for crop recommendation, XGBoost
+  for yield); the other trained models are kept only for their comparison pages, not served live.
 - No production deployment / CI pipeline configured yet.
 
 ## Research Contribution
