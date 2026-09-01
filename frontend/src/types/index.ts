@@ -198,6 +198,26 @@ export interface WaterRequirementResponse {
   reason: string | null
 }
 
+export interface YieldRiskOptionsResponse {
+  supported_crops: string[]
+  active_model: string | null
+  active_model_accuracy: number | null
+  dataset_records: number
+}
+
+export interface YieldRiskResponse {
+  supported: boolean
+  crop: string
+  mapped_crop: string | null
+  state: string | null
+  season: string | null
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | null
+  probabilities: { LOW: number; MEDIUM: number; HIGH: number } | null
+  model_used: string | null
+  model_accuracy: number | null
+  reason: string | null
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'

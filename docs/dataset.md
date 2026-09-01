@@ -211,3 +211,63 @@ citable source — checking is what caught it.
 - **Only mid-season (peak) crop coefficient is used.** Kc changes through a crop's growth stages
   (initial/development/mid-season/late-season); this module only uses Kc_mid (peak water demand),
   not a full-season water-balance curve, since the app doesn't collect planting dates.
+
+## 5. Yield Risk (Phase 2, ML-based)
+
+### Source
+
+The **same** India crop production dataset used for yield prediction
+([`ml/datasets/india_crop_production.csv`](../ml/datasets/india_crop_production.csv)) — no new
+dataset was needed. This module trains a classifier on it with a different, purpose-built label.
+
+### Label construction
+
+For each of the 54 crops in the dataset, that crop's own yield values (across every state, season
+and year recorded) are split into **tertiles**: the bottom third of that crop's yield distribution
+is labeled `HIGH` risk, the middle third `MEDIUM`, the top third `LOW`. Tertiles are computed
+**per crop**, never across crops — yield scale varies by roughly an order of magnitude between
+crops (e.g. rice ~2 t/ha vs. banana ~29 t/ha), so a single global threshold would be meaningless.
+Crops with fewer than 60 records are dropped before training (too few for a reliable tertile split).
+
+**What the resulting LOW/MEDIUM/HIGH label actually means:** how a (state, crop, season)
+combination's yield has historically ranked *nationally, relative to that same crop's own
+distribution* — a regional historical performance tier. It is explicitly **not** a forecast of
+this year's weather, disease, or pest risk: the model has no weather, soil, or year-specific input
+at inference time.
+
+### A methodology correction, kept in the repo on purpose
+
+The first version of this model used a random 80/20 row split and reported a flattering-looking
+**64.5% test accuracy** — but a proper 5-fold cross-validation on the same data came back at only
+**36.9%**, barely above the 33.3% baseline for guessing among 3 balanced classes. The cause: the
+same (state, crop, season) triple recurs across ~20 different years in this dataset, so a random
+row split puts near-duplicate feature rows (identical inputs, different year) on both sides of the
+split — the model could partly memorize `X -> majority label` from training rather than generalize.
+The fix was a **temporal split**: train on 1997–2015, test on entirely unseen years (2016–2020),
+with 5-fold cross-validation grouped by year within the training set so no fold shares a year with
+another. The corrected, honest result — **Random Forest, 55.3% test accuracy, evaluated on years
+the model never saw during training** — is what's actually shipped. This is recorded here (and in
+`docs/ml-methodology.md`) as a deliberate reminder that comparing a headline metric against a
+second, differently-computed metric is what catches this kind of leakage — a single flattering
+number in isolation would not have.
+
+### Sanity check against real-world knowledge
+
+Punjab is widely known as India's highest-yielding rice-growing state (intensively irrigated,
+Green Revolution heartland). The trained model predicts **LOW risk (100% confidence)** for
+rice/Punjab/Kharif and **HIGH risk (73%)** for rice/Maharashtra/Kharif for the same season —
+matching real agronomic expectation, which is a good sign the model learned a genuine regional
+signal rather than noise, despite the modest 55% accuracy on a 3-class problem.
+
+### Known limitations
+
+- 55.3% accuracy on a 3-class problem (33.3% baseline) is a **real but modest** signal — useful as
+  a rough regional indicator, not a precise risk score. The UI shows the full LOW/MEDIUM/HIGH
+  probability breakdown, not just the top class, so the farmer can see how confident the model
+  actually is.
+- Covers 11 of 22 recommendation-engine crops — the same crops (and the same `CROP_ALIAS_MAP`) as
+  yield prediction, since it's trained on the same dataset.
+- This is a *different kind of risk* from the rule-based weather/soil/water/disease risk dashboard
+  (`risk_service.py`, `/app/risk`) — that one uses live weather + soil signals a farmer actually
+  controls; this one is a historical regional-performance signal. Both are shown, both are labeled
+  for what they are, and neither replaces the other.

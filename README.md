@@ -4,14 +4,14 @@
 
 Final-year Computer Science and Engineering major project.
 
-> **Status: MVP + Phase 2 (Yield, Profit & Water Prediction).** Crop recommendation, soil
-> intelligence, weather, explainable AI (SHAP), model comparison, risk summary, history, the
-> What-If simulator, yield prediction, profit estimation, and water requirement are real and
-> working end to end. Disease detection, the AI assistant, voice, and satellite/IoT are
-> intentionally **not implemented** — see [Future Scope](docs/future-scope.md) and the in-app AI
-> Roadmap page. Nothing in this build fabricates a metric or a prediction: every number shown
-> comes from a trained model, real historical data, a published scientific formula, a documented
-> rule-based calculation, or is explicitly labeled as a mock/prototype/farmer-supplied input.
+> **Status: MVP + Phase 2 complete.** Crop recommendation, soil intelligence, weather, explainable
+> AI (SHAP), model comparison, risk summary, history, the What-If simulator, yield prediction,
+> profit estimation, water requirement, and ML-based yield risk are all real and working end to
+> end. Disease detection, the AI assistant, voice, and satellite/IoT (Phase 3/4) are intentionally
+> **not implemented** — see [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page.
+> Nothing in this build fabricates a metric or a prediction: every number shown comes from a
+> trained model, real historical data, a published scientific formula, a documented rule-based
+> calculation, or is explicitly labeled as a mock/prototype/farmer-supplied input.
 
 ---
 
@@ -59,6 +59,10 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
   crop coefficients − USDA effective rainfall = net irrigation need (mm/day and liters/day/acre) —
   17 crops, right under the profit estimate. Formulas and reference tables fetched and parsed
   directly from the primary FAO documents, not recalled from memory.
+- **Yield Risk** (Phase 2, ML-based): a trained classifier (Random Forest, 55.3% test accuracy on
+  years unseen during training) predicting a LOW/MEDIUM/HIGH tier for how a crop has historically
+  performed nationally in a given state/season — 11 crops, right under the yield estimate. Augments
+  (doesn't replace) the existing rule-based risk dashboard; see Limitations for the distinction.
 - AI Roadmap page showing what's implemented vs. planned.
 - UI shells (clearly marked "coming in Phase 2/3") for Crop Doctor (disease detection) and the AI
   Agriculture Assistant — no fake model or LLM behind them.
@@ -91,15 +95,15 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown.
 
 ## Dataset
 
-Four independent public data sources, one per module (full provenance and limitations in
-[docs/dataset.md](docs/dataset.md)):
+Four independent public data sources (one reused twice) across the five modules — full provenance
+and limitations in [docs/dataset.md](docs/dataset.md):
 
 - **Crop Recommendation Dataset** — 2,200 records, 22 crop classes, 7 numeric features
   (N, P, K, temperature, humidity, ph, rainfall → crop label). Originally published on Kaggle by
   Atharva Ingle.
 - **India Crop Production records** — 325k district-level rows (state, crop, season, year → yield),
   1997–2020, sourced from a public mirror of India's crop-production statistics. Used for Phase 2
-  yield prediction.
+  yield prediction **and** (with a purpose-built tertile label) yield risk prediction.
 - **Agmarknet mandi price records** — real 2016 Indian government market-price transactions for 6
   crops, aggregated to a median-price-per-(crop, state) reference table. Used for Phase 2 profit
   prediction (revenue side only — cost is farmer-supplied, see Limitations).
@@ -146,10 +150,21 @@ the real ~6.2 mm/day) for a real test case — caught, documented, and replaced 
 source table. See [docs/ml-methodology.md](docs/ml-methodology.md) Part 4 for the full account.
 Covers 17 of 22 crops.
 
+**Yield Risk (Phase 2)** is a real trained classifier (Random Forest, 3 algorithms compared) on
+the *same* dataset as yield prediction, with a per-crop-tertile label engineered from that crop's
+own historical yield distribution. **Test accuracy: 55.3%** on 2016–2020 (years the model never
+saw during training; 3-class baseline is 33.3%). A first attempt used a random train/test split and
+reported a flattering 64.5% — a proper cross-validation on the same data came back at only 36.9%,
+exposing that the split let near-duplicate (state, crop, season) rows from different years leak
+across train/test. Fixed with a temporal split; the model's predictions were then spot-checked
+against known agronomy (Punjab correctly predicted low-risk for rice — India's best-known
+high-yield rice state). Full account: [docs/ml-methodology.md](docs/ml-methodology.md) Part 5.
+Covers 11 of 22 crops. Augments, does not replace, the rule-based risk dashboard.
+
 None of these numbers are hardcoded in the API or UI — they are read live from
 `models/metrics.json`, `models/yield_metrics.json`, `models/price_reference.json`,
-`models/water_kc_reference.json` and `models/water_p_reference.json`, which each build/training
-script regenerates on every run.
+`models/water_kc_reference.json`, `models/water_p_reference.json` and `models/risk_metrics.json`,
+which each build/training script regenerates on every run.
 
 ## Explainable AI
 
@@ -190,13 +205,14 @@ python ml/yield_prediction/train.py
 python ml/profit_prediction/build_price_reference.py
 python ml/water_requirement/build_kc_reference.py
 python ml/water_requirement/build_p_reference.py
+python ml/risk_prediction/train.py
 ```
 None of these download anything at runtime — they read the CSVs/HTML already included under
 `ml/datasets/` and write `models/*.joblib` + `models/metrics.json` / `models/yield_metrics.json` /
-`models/price_reference.json` / `models/water_kc_reference.json` / `models/water_p_reference.json`.
-The yield script processes ~325k rows and takes noticeably longer than the others (a couple of
-minutes, mostly Random Forest); the price script depends on the yield model being present (profit
-prediction calls it internally), so run it after yield.
+`models/price_reference.json` / `models/water_kc_reference.json` / `models/water_p_reference.json` /
+`models/risk_metrics.json`. The yield and risk scripts each process ~325k rows and take noticeably
+longer than the others (a couple of minutes, mostly Random Forest); the price script depends on the
+yield model being present (profit prediction calls it internally), so run it after yield.
 
 ### 4. Frontend
 ```bash
@@ -232,6 +248,8 @@ GET    /api/predict/profit/options
 POST   /api/predict/profit
 GET    /api/predict/water/options
 POST   /api/predict/water
+GET    /api/predict/yield-risk/options
+POST   /api/predict/yield-risk
 GET    /api/models
 GET    /api/models/performance
 GET    /api/history
@@ -249,28 +267,32 @@ Full column definitions: [docs/database.md](docs/database.md).
 ## Testing
 
 - Backend: end-to-end flow (register → login → create farm → submit soil → predict → explain →
-  model performance → history → risk → dashboard → yield → profit → water requirement) was manually
-  verified against a running `uvicorn` instance with real HTTP requests, including negative paths
-  (duplicate email, wrong password, missing/garbage token, out-of-range soil values, unknown
-  crop/state/season) — see repo history / dev notes.
+  model performance → history → risk → dashboard → yield → profit → water requirement → yield risk)
+  was manually verified against a running `uvicorn` instance with real HTTP requests, including
+  negative paths (duplicate email, wrong password, missing/garbage token, out-of-range soil values,
+  unknown crop/state/season) — see repo history / dev notes.
 - Water requirement's formula and results were hand-verified against real-world plausibility (a
   self-derived approximation that produced an unrealistic ~23 mm/day ET₀ was caught this way and
   replaced with FAO's actual published table — see `docs/ml-methodology.md` Part 4).
+- Yield risk's evaluation methodology was corrected mid-development after comparing two different
+  accuracy numbers (64.5% random-split vs. 36.9% proper CV) exposed train/test leakage; the fix and
+  a follow-up domain sanity check (Punjab rice correctly predicted low-risk) are documented in
+  `docs/ml-methodology.md` Part 5.
 - Database persistence was verified directly against the SQLite file (row counts, foreign-key
   joins across `crop_predictions`/`crop_scores`), not just through the API layer.
 - Frontend: `npm run build` (TypeScript project build + Vite production build) passes with zero
   errors. The full user journey (landing → register → dashboard → create farm → soil → crop
   recommendation → What-If simulation → explanation → yield estimate → profit estimate → water
-  requirement → model lab → risk → history → roadmap) was driven with a headless Chrome browser
-  against the real backend, with zero console/JS errors, across multiple runs as each Phase 2
-  module was added.
+  requirement → yield risk → model lab → risk → history → roadmap) was driven with a headless
+  Chrome browser against the real backend, with zero console/JS errors, across multiple runs as
+  each Phase 2 module was added.
 
 ## Future Scope
 
-A trained (not rule-based) risk model, disease detection (computer vision), a real LLM/RAG-backed
-AI assistant, voice interface, multilingual support, satellite/NDVI monitoring and IoT sensor
-ingestion. All have UI shells or clearly-marked "roadmap" placeholders already in place. Yield,
-profit and water requirement (previously listed here) shipped in Phase 2. Details:
+Disease detection (computer vision), a real LLM/RAG-backed AI assistant, voice interface,
+multilingual support, satellite/NDVI monitoring and IoT sensor ingestion (Phase 3/4). All have UI
+shells or clearly-marked "roadmap" placeholders already in place. Yield, profit, water requirement
+and yield risk (previously listed here) shipped in Phase 2 — **Phase 2 is now complete**. Details:
 [docs/future-scope.md](docs/future-scope.md).
 
 ## Limitations
@@ -295,9 +317,18 @@ profit and water requirement (previously listed here) shipped in Phase 2. Detail
   actual GPS position, and only the mid-season (peak-demand) crop coefficient — not a full
   growth-stage water-balance model. Covers 17 of 22 crops. See `docs/dataset.md` and
   `docs/ml-methodology.md`.
+- Yield risk is a **modest, real signal** (55.3% test accuracy on a 3-class problem, 33.3%
+  baseline), evaluated on years the model never trained on. It answers a narrower question than it
+  might sound like — "how has this crop historically ranked nationally in this state/season?" — not
+  a forecast of this year's weather, disease or pest risk, and it has no weather/soil/year input.
+  Covers 11 of 22 crops. It augments, and does not replace, the rule-based weather/soil/water/
+  disease risk dashboard. See `docs/dataset.md` and `docs/ml-methodology.md` Part 5 for the full
+  methodology, including a documented train/test-leakage bug that was caught and fixed before this
+  shipped.
 - No automated backend/frontend test suite yet (manual + scripted E2E verification only).
-- Single active model at inference time per module (Random Forest for crop recommendation, XGBoost
-  for yield); the other trained models are kept only for their comparison pages, not served live.
+- Single active model at inference time per module (Random Forest for crop recommendation and yield
+  risk, XGBoost for yield); the other trained models are kept only for their comparison pages, not
+  served live.
 - No production deployment / CI pipeline configured yet.
 
 ## Research Contribution

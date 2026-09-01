@@ -91,6 +91,21 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   `false` (with `reason`) for a crop without Kc data or an unrecognized state. `503` if
   `ml/water_requirement/build_kc_reference.py` / `build_p_reference.py` haven't been run yet.
 
+## Yield Risk (Phase 2, ML-based)
+
+- `GET /predict/yield-risk/options` → `{ supported_crops: [...11], active_model, active_model_accuracy,
+  dataset_records }`.
+
+- `POST /predict/yield-risk` — `{ crop, state, season, farm_id? }` →
+  `{ supported: bool, crop, mapped_crop, state, season, risk_level: "LOW" | "MEDIUM" | "HIGH",
+  probabilities: { LOW, MEDIUM, HIGH }, model_used, model_accuracy, reason }`. A trained classifier
+  (Random Forest, 55.3% test accuracy on years unseen during training) predicting which tertile a
+  crop's yield in that state/season has historically fallen into nationally — a regional historical
+  performance tier, **not** a forecast of this year's weather or disease risk (see
+  `docs/ml-methodology.md`). Distinct from `GET /risk` (rule-based, live weather/soil signals) —
+  both exist, neither replaces the other. `supported` is `false` (with `reason`) for a crop outside
+  the 11 covered. `503` if `ml/risk_prediction/train.py` hasn't been run yet.
+
 ## Models
 
 - `GET /models` — trained model names + active model.

@@ -24,8 +24,15 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
   4 generic-legume FAO-56 category values); see `docs/dataset.md` for exactly which and a
   documented case where a self-derived approximation was caught and replaced with the real source
   table after producing a ~3.7x-too-high result.
-- **Risk Prediction (ML-based)** — replace/augment the current rule-based `risk_service.py` with a
-  trained model once labeled risk/outcome data is available.
+- ✅ **Risk Prediction (ML-based)** — a real trained classifier (Random Forest, 55.3% test accuracy
+  on years unseen during training, 3-class baseline 33.3%) predicting a LOW/MEDIUM/HIGH tier from
+  the same yield dataset, reused with a purpose-built per-crop-tertile label. Live at
+  `POST /predict/yield-risk`, surfaced alongside yield/profit on the recommendation detail page.
+  Augments — does not replace — the existing rule-based weather/soil/water/disease risk dashboard,
+  which uses live signals this model doesn't have access to. See `docs/dataset.md` for a documented
+  case where a random train/test split gave a misleadingly high 64.5% accuracy that a proper
+  cross-validation (36.9%) caught, fixed with a temporal split, and cross-checked against known
+  regional agronomy (Punjab rice correctly predicted low-risk) before shipping.
 
 ## Phase 3
 - **Disease Detection** — CNN-based leaf image classifier. UI shell exists (`AI Crop Doctor` page,

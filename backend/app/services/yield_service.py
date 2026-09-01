@@ -129,7 +129,7 @@ def predict_yield(crop: str, state: str, season: str) -> dict:
     encoder = load_yield_encoder()
 
     row = pd.DataFrame([{"state": state, "crop": mapped_crop, "season": season}], columns=FEATURE_ORDER)
-    encoded = encoder.transform(row)
+    encoded = pd.DataFrame(encoder.transform(row), columns=FEATURE_ORDER)
     predicted_tonnes_per_ha = float(model.predict(encoded)[0])
     predicted_quintal_per_acre = predicted_tonnes_per_ha * 10 / HECTARES_PER_ACRE
 

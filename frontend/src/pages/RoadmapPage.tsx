@@ -20,7 +20,7 @@ const phases = [
       { label: 'Yield Prediction', done: true },
       { label: 'Profit Prediction', done: true },
       { label: 'Water Intelligence', done: true },
-      { label: 'Risk Prediction (ML-based)', done: false },
+      { label: 'Risk Prediction (ML-based)', done: true },
     ],
   },
   {

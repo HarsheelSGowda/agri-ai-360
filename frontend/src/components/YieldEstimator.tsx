@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
-import { TrendingUp, Loader2, IndianRupee } from 'lucide-react'
+import { TrendingUp, Loader2, IndianRupee, ShieldAlert } from 'lucide-react'
 import { GlassCard } from './GlassCard'
 import { getYieldOptions, predictYield } from '@/services/yieldService'
 import { getProfitOptions, predictProfit } from '@/services/profitService'
+import { getYieldRiskOptions, predictYieldRisk } from '@/services/riskMlService'
 import { apiErrorMessage } from '@/services/api'
 import { useFarmStore } from '@/hooks/useFarmStore'
-import type { ProfitOptionsResponse, ProfitPredictionResponse, YieldOptionsResponse, YieldPredictionResponse } from '@/types'
+import type {
+  ProfitOptionsResponse,
+  ProfitPredictionResponse,
+  YieldOptionsResponse,
+  YieldPredictionResponse,
+  YieldRiskOptionsResponse,
+  YieldRiskResponse,
+} from '@/types'
+import clsx from 'clsx'
 
 function guessState(location: string | undefined, states: string[]): string {
   if (!location) return ''
@@ -29,13 +38,19 @@ export function YieldEstimator({ crop }: { crop: string }) {
   const [profitLoading, setProfitLoading] = useState(false)
   const [profitError, setProfitError] = useState<string | null>(null)
 
+  const [riskOptions, setRiskOptions] = useState<YieldRiskOptionsResponse | null>(null)
+  const [riskResult, setRiskResult] = useState<YieldRiskResponse | null>(null)
+  const [riskLoading, setRiskLoading] = useState(false)
+  const [riskError, setRiskError] = useState<string | null>(null)
+
   useEffect(() => {
     let cancelled = false
-    Promise.all([getYieldOptions(), getProfitOptions()])
-      .then(([yieldRes, profitRes]) => {
+    Promise.all([getYieldOptions(), getProfitOptions(), getYieldRiskOptions()])
+      .then(([yieldRes, profitRes, riskRes]) => {
         if (cancelled) return
         setOptions(yieldRes)
         setProfitOptions(profitRes)
+        setRiskOptions(riskRes)
         setState((prev) => prev || guessState(activeFarm?.location, yieldRes.states))
       })
       .catch((err) => !cancelled && setError(apiErrorMessage(err)))
@@ -59,6 +74,7 @@ export function YieldEstimator({ crop }: { crop: string }) {
 
   const isCropSupported = options?.supported_crops.includes(crop.toLowerCase())
   const isProfitSupported = profitOptions?.supported_crops.includes(crop.toLowerCase())
+  const isRiskSupported = riskOptions?.supported_crops.includes(crop.toLowerCase())
 
   if (!isCropSupported) {
     return (
@@ -82,6 +98,7 @@ export function YieldEstimator({ crop }: { crop: string }) {
     setError(null)
     setLoading(true)
     setProfitResult(null)
+    setRiskResult(null)
     try {
       const res = await predictYield(crop, state, season, activeFarm?.id)
       setResult(res)
@@ -107,6 +124,19 @@ export function YieldEstimator({ crop }: { crop: string }) {
       setProfitError(apiErrorMessage(err))
     } finally {
       setProfitLoading(false)
+    }
+  }
+
+  const handleRiskEstimate = async () => {
+    setRiskError(null)
+    setRiskLoading(true)
+    try {
+      const res = await predictYieldRisk(crop, state, season, activeFarm?.id)
+      setRiskResult(res)
+    } catch (err) {
+      setRiskError(apiErrorMessage(err))
+    } finally {
+      setRiskLoading(false)
     }
   }
 
@@ -234,6 +264,52 @@ export function YieldEstimator({ crop }: { crop: string }) {
 
           {profitResult && !profitResult.supported && profitResult.reason && (
             <p className="mt-4 rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-300">{profitResult.reason}</p>
+          )}
+        </div>
+      )}
+
+      {result?.supported && isRiskSupported && (
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-white/50">
+              <ShieldAlert size={14} /> Yield Risk (ML)
+            </div>
+            <button onClick={handleRiskEstimate} disabled={riskLoading} className="btn-secondary px-4 py-1.5 text-xs disabled:opacity-60">
+              {riskLoading ? <Loader2 size={14} className="animate-spin" /> : 'Check'}
+            </button>
+          </div>
+
+          {riskError && <p className="mt-2 rounded-lg bg-rose-400/10 px-3 py-2 text-sm text-rose-300">{riskError}</p>}
+
+          {riskResult?.supported && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={clsx(
+                    'rounded-lg border px-3 py-1 text-xl font-bold',
+                    riskResult.risk_level === 'LOW' && 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400',
+                    riskResult.risk_level === 'MEDIUM' && 'border-amber-400/30 bg-amber-400/10 text-amber-400',
+                    riskResult.risk_level === 'HIGH' && 'border-rose-400/30 bg-rose-400/10 text-rose-400',
+                  )}
+                >
+                  {riskResult.risk_level}
+                </span>
+                <div className="flex gap-3 text-xs text-white/50">
+                  <span>L {((riskResult.probabilities?.LOW ?? 0) * 100).toFixed(0)}%</span>
+                  <span>M {((riskResult.probabilities?.MEDIUM ?? 0) * 100).toFixed(0)}%</span>
+                  <span>H {((riskResult.probabilities?.HIGH ?? 0) * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-white/30">
+                Model: {riskResult.model_used} (accuracy {((riskResult.model_accuracy ?? 0) * 100).toFixed(1)}%) · reflects where{' '}
+                {riskResult.mapped_crop} in {riskResult.state} has historically ranked nationally by yield tertile (1997–2020) — a
+                regional historical performance tier, not a forecast of this year's weather or disease risk.
+              </p>
+            </div>
+          )}
+
+          {riskResult && !riskResult.supported && riskResult.reason && (
+            <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-300">{riskResult.reason}</p>
           )}
         </div>
       )}

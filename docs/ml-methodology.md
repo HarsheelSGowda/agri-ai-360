@@ -226,3 +226,59 @@ against the real source it's supposed to approximate.
   (which needs wind, solar radiation and humidity data this app doesn't collect).
 - 17 of 22 recommendation-engine crops are covered; see `docs/dataset.md` for exactly which and why
   the other 5 aren't.
+
+# Part 5 — Yield Risk (Phase 2, ML-based classifier)
+
+## Pipeline
+
+```
+india_crop_production.csv (same source as Part 2's yield model)
+    -> cleaning (drop yield<=0, drop duplicates, drop crops with <60 records)
+    -> per-crop tertile labeling (bottom third=HIGH, middle=MEDIUM, top third=LOW)
+    -> feature selection (state, crop, season - year excluded, same reasoning as yield)
+    -> ordinal-encode categorical features
+    -> TEMPORAL train/test split (train 1997-2015, test 2016-2020 - see below for why)
+    -> train 3 classifiers (Random Forest, Gradient Boosting, XGBoost)
+    -> evaluate (accuracy, precision, recall, F1, confusion matrix, year-grouped 5-fold CV)
+    -> save models + risk_metrics.json
+```
+
+Implementation: [`ml/risk_prediction/train.py`](../ml/risk_prediction/train.py).
+**Random Forest is the active model: 55.3% test accuracy** on years the model never trained on
+(3-class baseline: 33.3%).
+
+## Why the train/test split matters more here than elsewhere in this project
+
+Every other split in this project (crop recommendation, yield, and this model's first draft) used
+a random row split. That's fine when each row is closer to independent. It is **not** fine here:
+the same (state, crop, season) triple appears in this dataset roughly 20 times — once per year.
+A random split puts some of those near-duplicate rows in train and others in test, so a model can
+partly memorize `X -> majority label seen in training` instead of learning a generalizable pattern,
+and the test accuracy comes out inflated as a result.
+
+**This is exactly what happened on the first attempt**: random-split test accuracy was 64.5%, but
+a proper 5-fold CV on the same data came back at 36.9% — barely above chance. That gap is what
+gave it away; a single number in isolation wouldn't have. The fix was a temporal split (train on
+1997–2015, test on entirely unseen 2016–2020) with year-grouped CV to match. The honest result —
+55.3% test accuracy on unseen future years — is real, moderate, and above baseline, which is a
+believable outcome for a 3-feature model with no weather/soil/year input predicting something as
+volatility-prone as regional yield ranking.
+
+## Sanity check against domain knowledge (not just metrics)
+
+A metric can look reasonable and still be checking the wrong thing, so the model's actual
+predictions were spot-checked against something independently known to be true: Punjab is India's
+best-known high-yield rice state (heavily irrigated, Green Revolution heartland). The model
+predicts rice/Punjab/Kharif as **LOW risk at 100% confidence** and rice/Maharashtra/Kharif (a much
+less rice-intensive, more rainfed state) as **HIGH risk at 73% confidence** — matching real
+agronomic expectation. This kind of check is why 55.3% accuracy is treated here as a genuine,
+if modest, signal rather than dismissed as too low to be useful.
+
+## Relationship to the existing rule-based risk dashboard
+
+This model does **not** replace `app/services/risk_service.py` (the rule-based weather/soil/
+water/disease risk summary behind `/app/risk` and `GET /dashboard/{farm_id}`). That system uses
+live weather and soil signals a farmer actually controls day-to-day. This model uses none of
+that — it answers a narrower, different question ("how has this crop historically performed in
+this state and season, nationally?"). Both are surfaced in the app, both are explicitly labeled
+for what they measure, and neither is presented as a substitute for the other.

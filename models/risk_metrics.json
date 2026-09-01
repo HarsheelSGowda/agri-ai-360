@@ -1,0 +1,181 @@
+{
+  "dataset_source": "India district-level crop production records (state, crop, season -> per-crop yield tertile), same source as yield prediction",
+  "dataset_records": 325280,
+  "label_method": "Per-crop tertile of that crop's own historical yield distribution (bottom third=HIGH risk, middle third=MEDIUM, top third=LOW). Not a forecast of this year's weather/disease risk - a regional historical performance tier.",
+  "features": [
+    "state",
+    "crop",
+    "season"
+  ],
+  "excluded_features": {
+    "year": "excluded to avoid extrapolating past the training data's 2020 ceiling, same reasoning as the yield model"
+  },
+  "crops_covered": [
+    "Arecanut",
+    "Arhar/Tur",
+    "Bajra",
+    "Banana",
+    "Barley",
+    "Black Pepper",
+    "Cardamom",
+    "Cashewnut",
+    "Castor Seed",
+    "Coriander",
+    "Cotton(Lint)",
+    "Cowpea(Lobia)",
+    "Dry Chillies",
+    "Garlic",
+    "Ginger",
+    "Gram",
+    "Groundnut",
+    "Guar Seed",
+    "Horse-Gram",
+    "Jowar",
+    "Jute",
+    "Khesari",
+    "Linseed",
+    "Maize",
+    "Masoor",
+    "Mesta",
+    "Moong(Green Gram)",
+    "Moth",
+    "Niger Seed",
+    "Oilseeds Total",
+    "Onion",
+    "Other  Rabi Pulses",
+    "Other Cereals",
+    "Other Kharif Pulses",
+    "Other Oilseeds",
+    "Other Summer Pulses",
+    "Peas & Beans (Pulses)",
+    "Potato",
+    "Ragi",
+    "Rapeseed &Mustard",
+    "Rice",
+    "Safflower",
+    "Sannhamp",
+    "Sesamum",
+    "Small Millets",
+    "Soyabean",
+    "Sugarcane",
+    "Sunflower",
+    "Sweet Potato",
+    "Tapioca",
+    "Tobacco",
+    "Turmeric",
+    "Urad",
+    "Wheat"
+  ],
+  "split_method": "temporal (train years 1997-2015, test years 2016-2020) - a random row split was tried first and produced misleadingly inflated accuracy from (state,crop,season) rows recurring across years; see docs/ml-methodology.md.",
+  "random_state": 42,
+  "trained_at": "2026-09-01T21:21:15.536761+00:00",
+  "models": {
+    "risk_random_forest": {
+      "accuracy": 0.5527965963502676,
+      "precision": 0.6010798818836512,
+      "recall": 0.5527965963502676,
+      "f1_score": 0.5572388607925837,
+      "confusion_matrix": [
+        [
+          11795,
+          1192,
+          2757
+        ],
+        [
+          4956,
+          15804,
+          9769
+        ],
+        [
+          8295,
+          3198,
+          9691
+        ]
+      ],
+      "labels": [
+        "HIGH",
+        "LOW",
+        "MEDIUM"
+      ],
+      "cross_val_accuracy_mean": 0.6482500138091591,
+      "cross_val_accuracy_std": 0.0039302515927633905,
+      "feature_importance": {
+        "state": 0.4903827270449011,
+        "crop": 0.4205821839165793,
+        "season": 0.08903508903851963
+      }
+    },
+    "risk_gradient_boosting": {
+      "accuracy": 0.45648338941844435,
+      "precision": 0.5096951981403053,
+      "recall": 0.45648338941844435,
+      "f1_score": 0.457272001482765,
+      "confusion_matrix": [
+        [
+          10920,
+          2005,
+          2819
+        ],
+        [
+          9228,
+          12745,
+          8556
+        ],
+        [
+          9810,
+          4246,
+          7128
+        ]
+      ],
+      "labels": [
+        "HIGH",
+        "LOW",
+        "MEDIUM"
+      ],
+      "cross_val_accuracy_mean": 0.5275090364811614,
+      "cross_val_accuracy_std": 0.009082710830839785,
+      "feature_importance": {
+        "state": 0.6385899987322559,
+        "crop": 0.2202715027007584,
+        "season": 0.1411384985669857
+      }
+    },
+    "risk_xgboost": {
+      "accuracy": 0.5456513037935278,
+      "precision": 0.593486587071165,
+      "recall": 0.5456513037935278,
+      "f1_score": 0.5491384708531007,
+      "confusion_matrix": [
+        [
+          11889,
+          1282,
+          2573
+        ],
+        [
+          5368,
+          15544,
+          9617
+        ],
+        [
+          8489,
+          3320,
+          9375
+        ]
+      ],
+      "labels": [
+        "HIGH",
+        "LOW",
+        "MEDIUM"
+      ],
+      "cross_val_accuracy_mean": 0.6406064321179478,
+      "cross_val_accuracy_std": 0.004771385943956259,
+      "feature_importance": {
+        "state": 0.40339040756225586,
+        "crop": 0.30904775857925415,
+        "season": 0.2875618040561676
+      }
+    }
+  },
+  "active_model": "risk_random_forest",
+  "active_model_accuracy": 0.5527965963502676
+}
