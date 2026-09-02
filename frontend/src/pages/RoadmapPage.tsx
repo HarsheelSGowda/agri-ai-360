@@ -27,7 +27,7 @@ const phases = [
     title: 'Phase 3',
     tone: 'sky',
     items: [
-      { label: 'Disease Detection', done: false },
+      { label: 'Disease Detection', done: true },
       { label: 'AI Agriculture Assistant', done: false },
       { label: 'Voice Assistant', done: false },
       { label: 'Multilingual AI', done: false },

@@ -32,9 +32,13 @@ agri-ai-360/
     main.py           FastAPI app wiring, CORS, router registration
   ml/
     crop_recommendation/train.py   Training pipeline (dataset → saved models + metrics.json)
-    datasets/         crop_recommendation.csv
-    preprocessing/, explainability/, evaluation/, yield_prediction/, disease_detection/
-                       Reserved for Phase 2/3 modules — architecture in place, not yet implemented
+    yield_prediction/, profit_prediction/, water_requirement/, risk_prediction/
+                       Phase 2 training/build pipelines (all implemented)
+    disease_detection/ Phase 3 training pipeline (prepare_dataset.py, train.py) — implemented
+    datasets/          crop_recommendation.csv, india_crop_production.csv, agmarknet_prices/,
+                       fao56/, plant_disease/
+    preprocessing/, explainability/, evaluation/
+                       Reserved for future modules — architecture in place, not yet implemented
   models/             Trained model artifacts (*.joblib) + metrics.json — generated, not hand-written
   docs/               This documentation set
 ```
@@ -54,7 +58,10 @@ agri-ai-360/
 - **`WeatherProvider` is an abstract interface** (`app/services/weather_provider.py`) so a real
   weather API can be added later by implementing one class, with zero changes to any route or
   frontend code — this is the same pattern the master spec asked for so Phase 2/3 modules
-  (yield/profit prediction, disease detection) can be added without rewriting the app.
+  (yield/profit prediction, disease detection) could be added without rewriting the app, and each
+  one was: a new `ml/<module>/` training script, `models/*.joblib` + `*_metrics.json`, a service +
+  schema + router, and a frontend page/service, with no changes to the auth, farm, or core routing
+  layers.
 - **DATABASE_URL drives Postgres vs. SQLite** transparently through the same SQLAlchemy models —
   there is no SQLite-only or Postgres-only code path.
 

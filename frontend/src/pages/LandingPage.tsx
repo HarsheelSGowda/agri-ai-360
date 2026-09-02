@@ -20,7 +20,7 @@ const capabilities = [
   { icon: BrainCircuit, title: 'Explainable AI', desc: 'SHAP-powered "why this crop" breakdown for every recommendation.', live: true },
   { icon: TrendingUp, title: 'Yield Prediction', desc: 'Real ML yield estimate (t/ha) from state, season and crop history.', live: true },
   { icon: DollarSign, title: 'Profit Intelligence', desc: 'Real yield × real mandi price, minus your own cost estimate.', live: true },
-  { icon: Stethoscope, title: 'Disease Detection', desc: 'Computer-vision leaf disease diagnosis from a photo.', live: false },
+  { icon: Stethoscope, title: 'Disease Detection', desc: 'Computer-vision leaf disease diagnosis from a photo (apple, maize, grapes, orange).', live: true },
   { icon: MessageCircle, title: 'AI Assistant', desc: 'Conversational farm advisor grounded in your own data.', live: false },
 ]
 

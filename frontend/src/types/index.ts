@@ -218,6 +218,29 @@ export interface YieldRiskResponse {
   reason: string | null
 }
 
+export interface DiseasePrediction {
+  crop: string
+  condition: string
+  is_healthy: boolean
+  probability: number
+}
+
+export interface DiseaseDiagnosisResponse {
+  top_prediction: DiseasePrediction
+  alternatives: DiseasePrediction[]
+  model_used: string
+  model_accuracy: number
+  supported_crops: string[]
+}
+
+export interface DiseaseOptionsResponse {
+  supported_crops: string[]
+  classes: string[]
+  active_model: string | null
+  active_model_accuracy: number | null
+  dataset_records: number
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'

@@ -106,6 +106,20 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   both exist, neither replaces the other. `supported` is `false` (with `reason`) for a crop outside
   the 11 covered. `503` if `ml/risk_prediction/train.py` hasn't been run yet.
 
+## Disease Detection (Phase 3)
+
+- `GET /predict/disease/options` → `{ supported_crops: [...4], classes: [...13], active_model,
+  active_model_accuracy, dataset_records }`.
+
+- `POST /predict/disease` — multipart form upload, field name `image` (JPEG/PNG/WebP, max 8 MB) →
+  `{ top_prediction: { crop, condition, is_healthy, probability }, alternatives: [...top 2 more],
+  model_used, model_accuracy, supported_crops }`. Runs the uploaded leaf photo through a frozen
+  MobileNetV3-Small feature extractor + a trained classifier (Logistic Regression, 97.9% test
+  accuracy) to identify crop + disease/healthy condition. Covers 13 classes across 4 crops (apple,
+  maize, grapes, orange) — see `docs/dataset.md` for why. `400` for a non-image upload, an
+  unreadable file, or an unsupported content-type; `503` if `ml/disease_detection/train.py` hasn't
+  been run yet.
+
 ## Models
 
 - `GET /models` — trained model names + active model.

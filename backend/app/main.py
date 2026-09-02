@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api import (
     auth,
     dashboard,
+    disease_router,
     farms,
     history,
     models_router,
@@ -64,3 +65,4 @@ app.include_router(yield_router.router, prefix="/api")
 app.include_router(profit_router.router, prefix="/api")
 app.include_router(water_router.router, prefix="/api")
 app.include_router(risk_ml_router.router, prefix="/api")
+app.include_router(disease_router.router, prefix="/api")

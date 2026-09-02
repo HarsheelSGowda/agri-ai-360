@@ -1,0 +1,14 @@
+label,crop,condition,is_healthy,source_class,sampled,available
+apple__apple_scab,apple,Apple Scab,False,Apple___Apple_scab,300,630
+apple__black_rot,apple,Black Rot,False,Apple___Black_rot,300,621
+apple__cedar_apple_rust,apple,Cedar Apple Rust,False,Apple___Cedar_apple_rust,275,275
+apple__healthy,apple,Healthy,True,Apple___healthy,300,1645
+maize__gray_leaf_spot,maize,Gray Leaf Spot,False,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,300,513
+maize__common_rust,maize,Common Rust,False,Corn_(maize)___Common_rust_,300,1192
+maize__northern_leaf_blight,maize,Northern Leaf Blight,False,Corn_(maize)___Northern_Leaf_Blight,300,985
+maize__healthy,maize,Healthy,True,Corn_(maize)___healthy,300,1162
+grapes__black_rot,grapes,Black Rot,False,Grape___Black_rot,300,1180
+grapes__esca_black_measles,grapes,Esca (Black Measles),False,Grape___Esca_(Black_Measles),300,1383
+grapes__leaf_blight,grapes,Leaf Blight,False,Grape___Leaf_blight_(Isariopsis_Leaf_Spot),300,1076
+grapes__healthy,grapes,Healthy,True,Grape___healthy,300,423
+orange__citrus_greening_hlb,orange,Citrus Greening (HLB),False,Orange___Haunglongbing_(Citrus_greening),300,5507

@@ -22,3 +22,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Scratch dataset checkouts (fetched raw source data, not committed - see docs/dataset.md)
+ml/datasets/plantvillage_raw/

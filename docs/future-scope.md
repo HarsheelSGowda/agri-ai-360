@@ -35,9 +35,14 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
   regional agronomy (Punjab rice correctly predicted low-risk) before shipping.
 
 ## Phase 3
-- **Disease Detection** — CNN-based leaf image classifier. UI shell exists (`AI Crop Doctor` page,
-  upload disabled, explicitly labeled "Coming in Phase 2"). Reserved directory:
-  `ml/disease_detection/`.
+- ✅ **Disease Detection** — real, trained image classifier ("AI Crop Doctor"). A leaf photo is run
+  through MobileNetV3-Small (ImageNet-pretrained, frozen feature extraction) into a trained
+  Logistic Regression classifier (97.9% test accuracy, chosen over Random Forest and Gradient
+  Boosting by real comparison — see `docs/ml-methodology.md` Part 6), identifying crop + disease/
+  healthy condition with a confidence score. Live at `GET /predict/disease/options` and
+  `POST /predict/disease`, surfaced on the `AI Crop Doctor` page. Covers 13 classes across 4 crops
+  (apple, maize, grapes, orange) — see `docs/dataset.md` for the full class list and why coverage
+  is limited to these crops.
 - **AI Agriculture Assistant** — LLM/RAG-backed chat grounded in the farmer's own farm data.
   UI shell exists (`chat_sessions`/`chat_messages` tables already in the schema); currently shows
   static example messages only, explicitly labeled "Development Preview."
@@ -52,11 +57,10 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
 
 ## What "architecture in place" means concretely
 
-- Reserved ML subdirectories (`ml/yield_prediction/`, `ml/disease_detection/`) exist but are
-  empty — no placeholder code pretending to be a trained model.
 - Reserved DB tables (`alerts`, `model_versions` beyond the current file-based usage,
   `chat_sessions`, `chat_messages`) already exist in the schema.
 - `WeatherProvider` is an interface specifically so a real weather API becomes a second
   implementation, not a rewrite (see `docs/architecture.md`).
-- Every "coming soon" surface in the UI (`Crop Doctor`, `AI Assistant`) is visually complete but
-  functionally inert and explicitly labeled, per the "don't fake it" project rule.
+- The remaining "coming soon" surface in the UI (`AI Assistant`) is visually complete but
+  functionally inert and explicitly labeled, per the "don't fake it" project rule. `Crop Doctor`
+  (previously in this category) now runs a real trained model end to end.

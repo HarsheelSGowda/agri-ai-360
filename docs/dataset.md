@@ -1,7 +1,7 @@
 # Dataset
 
-This project uses three independent public data sources — one per module. They are not merged;
-each has its own build/training script, model artifacts and metrics file.
+This project uses five independent public data sources — one per module (one reused twice). They
+are not merged; each has its own build/training script, model artifacts and metrics file.
 
 ## 1. Crop Recommendation
 
@@ -271,3 +271,62 @@ signal rather than noise, despite the modest 55% accuracy on a 3-class problem.
   (`risk_service.py`, `/app/risk`) — that one uses live weather + soil signals a farmer actually
   controls; this one is a historical regional-performance signal. Both are shown, both are labeled
   for what they are, and neither replaces the other.
+
+## 6. Disease Detection (Phase 3)
+
+### Source
+
+**PlantVillage-Dataset** (`spMohanty/PlantVillage-Dataset` on GitHub) — the canonical public
+leaf-disease image dataset, 54,306 images across 38 crop-disease classes, released alongside
+Mohanty, Hughes & Salathé (2016), *"Using Deep Learning for Image-Based Plant Disease Detection."*
+Only the `raw/color` classes matching this project's existing 22-crop recommendation list were
+fetched (a git sparse-checkout of the upstream repo, scratch input, not committed to this repo —
+see `ml/disease_detection/prepare_dataset.py`): Apple, Corn (maize), Grape and Orange, 13 classes
+total.
+
+### Sampling
+
+`ml/disease_detection/prepare_dataset.py` samples a fixed cap of **300 images per class**
+(a CPU-trainable dataset size and a git-repo-friendly footprint — full source classes range from
+275 to 5,507 images) into [`ml/datasets/plant_disease/`](../ml/datasets/plant_disease/), which IS
+committed (manifest at `ml/datasets/plant_disease/manifest.csv` records exactly how many of each
+source class's images were available vs. sampled). **Result: 3,875 images across 13 classes**
+(one class, `apple__cedar_apple_rust`, has only 275 source images — sampled `min(300, available)`).
+
+| Crop | Classes | Conditions |
+|---|---|---|
+| Apple | 4 | Apple Scab, Black Rot, Cedar Apple Rust, Healthy |
+| Maize (corn) | 4 | Gray Leaf Spot, Common Rust, Northern Leaf Blight, Healthy |
+| Grapes | 4 | Black Rot, Esca (Black Measles), Leaf Blight, Healthy |
+| Orange | 1 | Citrus Greening (HLB) — only disease class available for this crop in the source |
+
+### Approach: frozen CNN feature extraction, not full fine-tuning
+
+`ml/disease_detection/train.py` runs each image through **MobileNetV3-Small**
+(`torchvision.models.mobilenet_v3_small`, ImageNet-pretrained weights, all convolutional layers
+frozen) to get a 576-dimensional feature vector, then trains classical classifiers (Random Forest,
+Gradient Boosting, Logistic Regression) on those vectors — the same "train several algorithms,
+compare real metrics, pick the winner" pattern used everywhere else in this project. Full
+fine-tuning of the CNN backbone was not attempted: ~300 images/class across 13 classes is too small
+to fine-tune convolutional layers from scratch without overfitting, and it would be far slower on
+CPU. A frozen ImageNet-pretrained backbone as a fixed feature extractor is a standard,
+well-established transfer-learning technique for small image datasets.
+
+### Known limitations of this dataset
+
+- **PlantVillage images are lab-condition photos** — controlled backgrounds, consistent lighting,
+  single leaf per image. Real farmer-submitted phone photos (cluttered backgrounds, variable
+  lighting, multiple leaves, motion blur) are a materially different distribution; real-world
+  accuracy on field photos will likely be lower than the 97.9% test accuracy measured on this
+  dataset's own held-out split. This is a widely documented limitation of PlantVillage-based
+  disease classifiers in the literature, not specific to this implementation.
+- **Only 13 of 38 upstream PlantVillage classes are covered** — the subset matching this project's
+  22-crop recommendation list (apple, maize, grapes, orange). The other 18 recommendation-engine
+  crops have no disease model at all; the UI reports this honestly (`supported_crops` in the API
+  response) rather than guessing on an unsupported crop.
+- **Orange has only 1 class** (Citrus Greening / HLB) — no healthy-orange or other-disease class
+  exists in the source dataset for this crop, so the model cannot distinguish a healthy orange leaf
+  from a diseased one; any orange-crop image will be classified as HLB.
+- **300-image-per-class cap** (vs. thousands available for some classes, e.g. orange HLB had 5,507)
+  trades a larger, more diverse training set for a CPU-trainable, git-repo-friendly dataset size —
+  a documented trade-off, not an oversight.

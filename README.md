@@ -4,10 +4,11 @@
 
 Final-year Computer Science and Engineering major project.
 
-> **Status: MVP + Phase 2 complete.** Crop recommendation, soil intelligence, weather, explainable
-> AI (SHAP), model comparison, risk summary, history, the What-If simulator, yield prediction,
-> profit estimation, water requirement, and ML-based yield risk are all real and working end to
-> end. Disease detection, the AI assistant, voice, and satellite/IoT (Phase 3/4) are intentionally
+> **Status: MVP + Phase 2 + Disease Detection (Phase 3, part 1) complete.** Crop recommendation,
+> soil intelligence, weather, explainable AI (SHAP), model comparison, risk summary, history, the
+> What-If simulator, yield prediction, profit estimation, water requirement, ML-based yield risk,
+> and now AI-powered disease detection ("Crop Doctor") are all real and working end to end. The AI
+> assistant, voice, multilingual support, and satellite/IoT (rest of Phase 3/4) are intentionally
 > **not implemented** — see [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page.
 > Nothing in this build fabricates a metric or a prediction: every number shown comes from a
 > trained model, real historical data, a published scientific formula, a documented rule-based
@@ -63,9 +64,14 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
   years unseen during training) predicting a LOW/MEDIUM/HIGH tier for how a crop has historically
   performed nationally in a given state/season — 11 crops, right under the yield estimate. Augments
   (doesn't replace) the existing rule-based risk dashboard; see Limitations for the distinction.
+- **Disease Detection / "AI Crop Doctor"** (Phase 3): upload a leaf photo, get a real diagnosis —
+  MobileNetV3-Small (ImageNet-pretrained, frozen) feature extraction + a trained Logistic
+  Regression classifier (97.9% test accuracy) identifies crop + disease/healthy condition with a
+  confidence score and alternatives. Covers 13 classes across 4 crops (apple, maize, grapes,
+  orange); low-confidence results are flagged, and unsupported crops are honestly reported as such.
 - AI Roadmap page showing what's implemented vs. planned.
-- UI shells (clearly marked "coming in Phase 2/3") for Crop Doctor (disease detection) and the AI
-  Agriculture Assistant — no fake model or LLM behind them.
+- UI shell (clearly marked "Development Preview") for the AI Agriculture Assistant — no fake LLM
+  behind it yet.
 
 ## Architecture
 
@@ -90,12 +96,13 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown.
 | Backend | Python, FastAPI, Pydantic v2, SQLAlchemy 2.0 |
 | Database | PostgreSQL (production) / SQLite (zero-setup local dev — same SQLAlchemy models) |
 | ML | pandas, NumPy, scikit-learn, XGBoost |
+| Computer Vision | PyTorch, torchvision (MobileNetV3-Small, ImageNet-pretrained) |
 | Explainable AI | SHAP |
 | Auth | JWT (python-jose) + bcrypt |
 
 ## Dataset
 
-Four independent public data sources (one reused twice) across the five modules — full provenance
+Five independent public data sources (one reused twice) across the six modules — full provenance
 and limitations in [docs/dataset.md](docs/dataset.md):
 
 - **Crop Recommendation Dataset** — 2,200 records, 22 crop classes, 7 numeric features
@@ -110,6 +117,10 @@ and limitations in [docs/dataset.md](docs/dataset.md):
 - **FAO Irrigation & Drainage Paper 56 + FAO Crop Water Needs manual** — official published crop
   coefficients (Table 12) and reference-evapotranspiration daylight tables (Table 4), fetched and
   parsed directly from fao.org, not recalled from memory. Used for Phase 2 water requirement.
+- **PlantVillage-Dataset** — 3,875 sampled real leaf images (13 classes: apple, maize, grapes,
+  orange — healthy + disease conditions), from the canonical public leaf-disease image dataset
+  (spMohanty/PlantVillage-Dataset on GitHub, released alongside Mohanty, Hughes & Salathe 2016).
+  Used for Phase 3 disease detection.
 
 ## ML Methodology
 
@@ -161,10 +172,27 @@ against known agronomy (Punjab correctly predicted low-risk for rice — India's
 high-yield rice state). Full account: [docs/ml-methodology.md](docs/ml-methodology.md) Part 5.
 Covers 11 of 22 crops. Augments, does not replace, the rule-based risk dashboard.
 
+**Disease Detection (Phase 3)** — three classifiers trained on MobileNetV3-Small (ImageNet-
+pretrained, frozen) feature vectors extracted from real leaf images, an 80/20 stratified split
+([ml/disease_detection/train.py](ml/disease_detection/train.py)). **Logistic Regression is the
+active model.**
+
+| Algorithm | Accuracy | Precision | Recall | F1 |
+|---|--:|--:|--:|--:|
+| Logistic Regression | 97.94% | 97.98% | 97.94% | 97.94% |
+| Gradient Boosting | 95.74% | 95.83% | 95.74% | 95.75% |
+| Random Forest | 95.48% | 95.60% | 95.48% | 95.48% |
+
+Full pipeline: a leaf photo → MobileNetV3-Small forward pass (576-dim feature vector, convolutional
+layers frozen — full fine-tuning wasn't attempted given only ~300 images/class) → the trained
+classifier head → crop + disease/healthy label with a confidence score. Covers 13 classes across 4
+crops (apple, maize, grapes, orange); any other crop, or an unclear photo, isn't something this
+model can honestly classify — low-confidence results are flagged rather than presented as certain.
+
 None of these numbers are hardcoded in the API or UI — they are read live from
 `models/metrics.json`, `models/yield_metrics.json`, `models/price_reference.json`,
-`models/water_kc_reference.json`, `models/water_p_reference.json` and `models/risk_metrics.json`,
-which each build/training script regenerates on every run.
+`models/water_kc_reference.json`, `models/water_p_reference.json`, `models/risk_metrics.json` and
+`models/disease_metrics.json`, which each build/training script regenerates on every run.
 
 ## Explainable AI
 
@@ -206,13 +234,16 @@ python ml/profit_prediction/build_price_reference.py
 python ml/water_requirement/build_kc_reference.py
 python ml/water_requirement/build_p_reference.py
 python ml/risk_prediction/train.py
+python ml/disease_detection/train.py
 ```
-None of these download anything at runtime — they read the CSVs/HTML already included under
+None of these download anything at runtime — they read the CSVs/HTML/images already included under
 `ml/datasets/` and write `models/*.joblib` + `models/metrics.json` / `models/yield_metrics.json` /
 `models/price_reference.json` / `models/water_kc_reference.json` / `models/water_p_reference.json` /
-`models/risk_metrics.json`. The yield and risk scripts each process ~325k rows and take noticeably
-longer than the others (a couple of minutes, mostly Random Forest); the price script depends on the
-yield model being present (profit prediction calls it internally), so run it after yield.
+`models/risk_metrics.json` / `models/disease_metrics.json`. The yield and risk scripts each process
+~325k rows and take noticeably longer than the others (a couple of minutes, mostly Random Forest);
+the price script depends on the yield model being present (profit prediction calls it internally),
+so run it after yield. The disease detection script runs a MobileNetV3 forward pass over ~3,875
+images on CPU (several minutes) before training its 3 classifier heads.
 
 ### 4. Frontend
 ```bash
@@ -250,6 +281,8 @@ GET    /api/predict/water/options
 POST   /api/predict/water
 GET    /api/predict/yield-risk/options
 POST   /api/predict/yield-risk
+GET    /api/predict/disease/options
+POST   /api/predict/disease
 GET    /api/models
 GET    /api/models/performance
 GET    /api/history
@@ -267,10 +300,15 @@ Full column definitions: [docs/database.md](docs/database.md).
 ## Testing
 
 - Backend: end-to-end flow (register → login → create farm → submit soil → predict → explain →
-  model performance → history → risk → dashboard → yield → profit → water requirement → yield risk)
-  was manually verified against a running `uvicorn` instance with real HTTP requests, including
-  negative paths (duplicate email, wrong password, missing/garbage token, out-of-range soil values,
-  unknown crop/state/season) — see repo history / dev notes.
+  model performance → history → risk → dashboard → yield → profit → water requirement → yield risk
+  → disease diagnosis) was manually verified against a running `uvicorn` instance with real HTTP
+  requests, including negative paths (duplicate email, wrong password, missing/garbage token,
+  out-of-range soil values, unknown crop/state/season, non-image upload, wrong content-type) — see
+  repo history / dev notes.
+- Disease detection was verified with real leaf photos from the held-out test set: a maize
+  Common Rust image correctly diagnosed at 99.8% confidence, a healthy apple leaf correctly
+  diagnosed at 99.98% confidence, both through the actual `POST /api/predict/disease` endpoint
+  (not just the offline evaluation metrics).
 - Water requirement's formula and results were hand-verified against real-world plausibility (a
   self-derived approximation that produced an unrealistic ~23 mm/day ET₀ was caught this way and
   replaced with FAO's actual published table — see `docs/ml-methodology.md` Part 4).
@@ -289,11 +327,11 @@ Full column definitions: [docs/database.md](docs/database.md).
 
 ## Future Scope
 
-Disease detection (computer vision), a real LLM/RAG-backed AI assistant, voice interface,
-multilingual support, satellite/NDVI monitoring and IoT sensor ingestion (Phase 3/4). All have UI
-shells or clearly-marked "roadmap" placeholders already in place. Yield, profit, water requirement
-and yield risk (previously listed here) shipped in Phase 2 — **Phase 2 is now complete**. Details:
-[docs/future-scope.md](docs/future-scope.md).
+A real LLM/RAG-backed AI assistant, voice interface, multilingual support, satellite/NDVI
+monitoring and IoT sensor ingestion (rest of Phase 3/4). All have UI shells or clearly-marked
+"roadmap" placeholders already in place. Yield, profit, water requirement, yield risk (Phase 2) and
+disease detection (Phase 3, previously listed here) now all ship real, working functionality.
+Details: [docs/future-scope.md](docs/future-scope.md).
 
 ## Limitations
 
@@ -325,10 +363,18 @@ and yield risk (previously listed here) shipped in Phase 2 — **Phase 2 is now 
   disease risk dashboard. See `docs/dataset.md` and `docs/ml-methodology.md` Part 5 for the full
   methodology, including a documented train/test-leakage bug that was caught and fixed before this
   shipped.
+- Disease detection covers **only 13 classes across 4 crops** (apple, maize, grapes, orange) — the
+  intersection of PlantVillage's available classes and this project's 22-crop recommendation list.
+  It's a **frozen-feature-extractor** approach (MobileNetV3 backbone not fine-tuned), chosen because
+  the dataset (~300 images/class) is too small to fine-tune convolutional layers without
+  overfitting; a larger, India-field-condition dataset (rather than PlantVillage's controlled lab
+  backgrounds) would be needed for a more field-robust model. Any other crop, or a low-confidence
+  result, is reported honestly rather than guessed. See `docs/dataset.md` and
+  `docs/ml-methodology.md`.
 - No automated backend/frontend test suite yet (manual + scripted E2E verification only).
 - Single active model at inference time per module (Random Forest for crop recommendation and yield
-  risk, XGBoost for yield); the other trained models are kept only for their comparison pages, not
-  served live.
+  risk, XGBoost for yield, Logistic Regression for disease detection); the other trained models are
+  kept only for their comparison pages, not served live.
 - No production deployment / CI pipeline configured yet.
 
 ## Research Contribution

@@ -281,4 +281,85 @@ water/disease risk summary behind `/app/risk` and `GET /dashboard/{farm_id}`). T
 live weather and soil signals a farmer actually controls day-to-day. This model uses none of
 that — it answers a narrower, different question ("how has this crop historically performed in
 this state and season, nationally?"). Both are surfaced in the app, both are explicitly labeled
+for what they are, and neither replaces the other.
+
+# Part 6 — Disease Detection (Phase 3)
+
+## Pipeline
+
+```
+ml/datasets/plant_disease/<label>/*.jpg  (13 classes, PlantVillage, prepared by prepare_dataset.py)
+    -> list images + labels
+    -> label encoding (13 classes)
+    -> stratified 80/20 train/test split (random_state=42)
+    -> MobileNetV3-Small (ImageNet-pretrained, frozen) forward pass -> 576-dim feature vector
+       per image (train and test images featurized identically, separately)
+    -> train 3 classifier heads on the features (Random Forest, Gradient Boosting,
+       Logistic Regression)
+    -> evaluate (accuracy, precision, recall, F1, confusion matrix)
+    -> save classifier heads + label encoder + disease_metrics.json
+    -> FastAPI runs the identical featurization + the saved active classifier at inference time
+```
+
+Implementation: [`ml/disease_detection/prepare_dataset.py`](../ml/disease_detection/prepare_dataset.py)
+(dataset sampling, run once) and [`ml/disease_detection/train.py`](../ml/disease_detection/train.py)
+(featurization + training). **Logistic Regression is the active model: 97.9% test accuracy**
+across the 13 classes.
+
+## Why feature extraction, not fine-tuning
+
+The dataset is small by deep-learning standards — 3,875 images across 13 classes, ~300/class.
+Fine-tuning MobileNetV3's convolutional layers on that few examples per class risks overfitting to
+this specific dataset's backgrounds and lighting rather than learning generalizable disease
+features, and would be far slower on CPU (this project has no GPU training infrastructure). Using
+the ImageNet-pretrained backbone as a **frozen** feature extractor — a single forward pass per
+image, no gradient updates to the CNN — is a standard, well-established transfer-learning technique
+specifically suited to this data regime: the pretrained features (trained on 1.2M general images)
+already encode useful low/mid-level visual structure (edges, textures, color patterns), and only
+the lightweight classifier head needs to learn the disease-specific decision boundary on top of
+that, which needs far fewer examples to do well.
+
+## Why Logistic Regression won over Random Forest / Gradient Boosting
+
+On the 576-dimensional MobileNetV3 feature space, Logistic Regression (97.9%) outperformed both
+tree-based ensembles (Random Forest 95.5%, Gradient Boosting 95.7%). This is a genuine, if
+unsurprising, result — CNN penultimate-layer features are dense, continuous, and already fairly
+linearly separable by class (that's a well-documented property of features from a network trained
+with a linear classification head, which MobileNetV3 was), so a linear model like Logistic
+Regression exploiting the full feature space directly tends to edge out tree ensembles that split
+on features one at a time. As with every other module in this project, the winner was picked by
+comparing real measured test accuracy across all three trained models, not assumed in advance —
+`ml/disease_detection/train.py` trains and evaluates all three every run and writes whichever
+scored highest to `disease_metrics.json`'s `active_model` field.
+
+## Evaluation protocol
+
+- **Split**: stratified 80/20 on the 3,875-image dataset, `random_state=42`.
+- **Metrics**: accuracy, weighted precision/recall/F1, confusion matrix (`sklearn.metrics`).
+- No cross-validation was run for this module (unlike crop recommendation and yield risk) — feature
+  extraction over the full dataset for each of 5 folds would meaningfully lengthen an already
+  CPU-bound training run; a single stratified held-out test set was judged sufficient given this is
+  the same evaluation rigor (accuracy/precision/recall/F1 on a true held-out split) used as the
+  baseline check everywhere else in this project. This is a documented scope choice, not an
+  oversight.
+
+## Relationship to the rule-based "disease risk" already in the risk dashboard
+
+The existing rule-based risk dashboard (`app/services/risk_service.py`) includes a generic,
+non-diagnostic "disease risk" factor (season/weather-driven likelihood of disease pressure in
+general). This module is different in kind: it's an actual image-based diagnosis of a *specific*
+uploaded leaf photo, naming the crop and condition, not a general seasonal risk estimate. The two
+are not merged and answer different questions, consistent with how yield risk (Part 5) and the
+rule-based risk dashboard coexist without one replacing the other.
+
+## Known limitation, stated plainly
+
+This model was trained and evaluated entirely on PlantVillage's lab-condition photos (clean
+backgrounds, controlled lighting, single leaf per image). It has not been evaluated against real
+field-condition photos a farmer would actually submit — cluttered backgrounds, variable lighting,
+multiple leaves, motion blur, different phone cameras. The 97.9% test accuracy is real and
+honestly measured on this dataset's own held-out split, but it should be read as an upper bound on
+field performance, not an expectation of it. This is a widely documented characteristic of
+PlantVillage-trained classifiers in the broader literature, not something specific to this
+implementation, and it's stated here rather than left implicit.
 for what they measure, and neither is presented as a substitute for the other.
