@@ -44,9 +44,16 @@ export function WeatherPage() {
   return (
     <div className="mx-auto max-w-md">
       <WeatherCard weather={weather} />
-      {weather.source === 'mock' && (
+      {weather.source === 'mock' ? (
         <p className="mt-4 text-center text-xs text-white/30">
-          Live weather API not yet configured — showing a clearly-labeled mock provider via a swappable WeatherProvider service.
+          Live weather is not enabled for this deployment — showing a clearly-labeled, deterministic mock provider via a
+          swappable WeatherProvider service. Set WEATHER_PROVIDER=open-meteo in the backend .env to enable real, live
+          weather (free, no API key required).
+        </p>
+      ) : (
+        <p className="mt-4 text-center text-xs text-white/30">
+          Live weather via Open-Meteo (open-meteo.com) — a free, publicly available weather service. If it's ever
+          unreachable, this page automatically and safely falls back to the mock provider rather than showing an error.
         </p>
       )}
     </div>

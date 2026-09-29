@@ -1,0 +1,51 @@
+{
+  "source": "Agmarknet (Indian government mandi price records), calendar year 2016",
+  "price_unit": "Rs. per quintal",
+  "not_inflation_adjusted": true,
+  "not_live_data": true,
+  "seeded_at": "2026-09-06T16:55:27.690661+00:00",
+  "crops": {
+    "rice": {
+      "records_inserted": 69488,
+      "states_covered": 20,
+      "markets_covered": 469,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    },
+    "maize": {
+      "records_inserted": 55902,
+      "states_covered": 21,
+      "markets_covered": 848,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    },
+    "pigeonpeas": {
+      "records_inserted": 41240,
+      "states_covered": 20,
+      "markets_covered": 679,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    },
+    "blackgram": {
+      "records_inserted": 39581,
+      "states_covered": 21,
+      "markets_covered": 663,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    },
+    "mungbean": {
+      "records_inserted": 34623,
+      "states_covered": 23,
+      "markets_covered": 658,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    },
+    "lentil": {
+      "records_inserted": 22686,
+      "states_covered": 13,
+      "markets_covered": 245,
+      "date_min": "2016-01-01",
+      "date_max": "2016-12-31"
+    }
+  }
+}

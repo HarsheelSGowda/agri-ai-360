@@ -19,6 +19,10 @@ import { HistoryPage } from '@/pages/HistoryPage'
 import { RoadmapPage } from '@/pages/RoadmapPage'
 import { CropDoctorPage } from '@/pages/CropDoctorPage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
+import { MarketPricesPage } from '@/pages/MarketPricesPage'
+import { FertilizerAdvisorPage } from '@/pages/FertilizerAdvisorPage'
+import { NotificationsPage } from '@/pages/NotificationsPage'
+import { RealTimeIntelligencePage } from '@/pages/RealTimeIntelligencePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
 function App() {
@@ -53,6 +57,10 @@ function App() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="assistant" element={<AIAssistantPage />} />
           <Route path="crop-doctor" element={<CropDoctorPage />} />
+          <Route path="market-prices" element={<MarketPricesPage />} />
+          <Route path="fertilizer" element={<FertilizerAdvisorPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="real-time" element={<RealTimeIntelligencePage />} />
           <Route path="roadmap" element={<RoadmapPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

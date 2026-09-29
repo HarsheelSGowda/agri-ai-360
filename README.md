@@ -39,7 +39,10 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
 - Landing page, JWT authentication (register/login/forgot-password UI), protected app shell.
 - Farmer dashboard: soil health, weather, farm health, risk — all real, farm-specific data.
 - Farm creation, soil analysis form with a threshold-based soil health score + generated insights.
-- Weather intelligence via a swappable `WeatherProvider` (mock provider by default, clearly labeled).
+- Weather intelligence via a swappable `WeatherProvider` — mock provider by default (clearly
+  labeled), or real **live weather + 5-day forecast** via the free open-meteo.com API
+  (`WEATHER_PROVIDER=open-meteo`, no key required), with an automatic, honest fallback to mock data
+  if the live API is unreachable.
 - Crop recommendation engine: real Random Forest model (99.3% test accuracy), Top-5 ranking with
   actual model probabilities and HIGH/MEDIUM/LOW confidence.
 - "Why this crop?" detail page with real SHAP feature-contribution chart + a generated natural
@@ -67,11 +70,34 @@ explainable decision-support platform, so a farmer sees not just *what* to plant
 - **Disease Detection / "AI Crop Doctor"** (Phase 3): upload a leaf photo, get a real diagnosis —
   MobileNetV3-Small (ImageNet-pretrained, frozen) feature extraction + a trained Logistic
   Regression classifier (97.9% test accuracy) identifies crop + disease/healthy condition with a
-  confidence score and alternatives. Covers 13 classes across 4 crops (apple, maize, grapes,
-  orange); low-confidence results are flagged, and unsupported crops are honestly reported as such.
+  confidence score and alternatives, plus rule-based care guidance (severity, recommended actions,
+  prevention) and diagnosis history per farm. Covers 13 classes across 4 crops (apple, maize,
+  grapes, orange); low-confidence results are flagged, and unsupported crops are honestly reported.
+- **Fertilizer Advisor**: rule-based nutrient-deficiency check (N/P/K/pH/organic carbon/moisture
+  against the same reference bands as the soil health score) with growth-stage application timing
+  and an explicit disclaimer that it's decision support, not a calibrated dosage prescription.
+- **Market Price Intelligence**: current price, historical trend chart and market comparison from
+  real 2016 Agmarknet (Government of India mandi) records — clearly labeled historical/reference
+  data, never presented as a live feed. Architected behind a swappable `MarketPriceProvider` so a
+  real live API can be connected later without touching the service or frontend.
+- **Personalized Notifications**: a notification center generating alerts from each farm's actual
+  current soil health, weather, risk, disease and market-price-trend data (no invented content),
+  with severity, category, read/unread state and per-farmer deduplication.
+- **AI Agriculture Assistant**: a real, working rule-based Q&A chat grounded in the farmer's own
+  farm data (soil health, weather, risk, disease, fertilizer, market price, and the crop
+  recommendation's SHAP explanation regenerated live). No LLM/RAG API is configured for this
+  project, so — per this project's no-fabrication rule — it's built and explicitly labeled as a
+  deterministic keyword-classified engine, not a language model; it says so when the underlying
+  data doesn't exist yet rather than guessing. Chat history persists per farmer (`chat_sessions`/
+  `chat_messages`).
+- **Real-Time Agri Intelligence** page: Weather (mock by default, or real live weather via
+  open-meteo.com when `WEATHER_PROVIDER=open-meteo` is set) plus two new integration-ready
+  architectures — Satellite/NDVI monitoring (explicitly labeled "Planned / Integration-Ready",
+  documents the intended metrics, never fakes a reading) and an IoT sensor
+  layer (Sensor → API/MQTT gateway → Backend → Database → Dashboard) with a real ingestion endpoint
+  (`POST /api/iot/readings`) any physical gateway can call today, plus a clearly-labeled
+  "Demo/Simulation" reading generator for when no sensor is connected yet.
 - AI Roadmap page showing what's implemented vs. planned.
-- UI shell (clearly marked "Development Preview") for the AI Agriculture Assistant — no fake LLM
-  behind it yet.
 
 ## Architecture
 
@@ -212,7 +238,8 @@ as a horizontal bar chart plus a narrative sentence generated from those values 
 ```bash
 cd agri-ai-360/backend
 cp .env.example .env
-# Edit .env if you have a real PostgreSQL instance / weather API key.
+# Edit .env if you have a real PostgreSQL instance / weather API key. SATELLITE_API_KEY has no
+# real provider implemented yet even if set (see Future Scope) — leave it blank.
 ```
 
 ### 2. Backend
@@ -235,6 +262,7 @@ python ml/water_requirement/build_kc_reference.py
 python ml/water_requirement/build_p_reference.py
 python ml/risk_prediction/train.py
 python ml/disease_detection/train.py
+python ml/market_price/seed_market_prices.py
 ```
 None of these download anything at runtime — they read the CSVs/HTML/images already included under
 `ml/datasets/` and write `models/*.joblib` + `models/metrics.json` / `models/yield_metrics.json` /
@@ -252,6 +280,12 @@ npm install
 npm run dev
 ```
 App: http://localhost:5173
+
+### 4b. Run backend tests (optional but recommended)
+```bash
+# from the backend venv
+pytest
+```
 
 ### 5. Switching to real PostgreSQL
 Set `DATABASE_URL=postgresql://<user>:<password>@<host>:5432/agriai360` in `backend/.env` and
@@ -283,6 +317,24 @@ GET    /api/predict/yield-risk/options
 POST   /api/predict/yield-risk
 GET    /api/predict/disease/options
 POST   /api/predict/disease
+GET    /api/history/disease
+GET    /api/fertilizer/options
+POST   /api/fertilizer/recommend
+GET    /api/market-prices/crops
+GET    /api/market-prices/states
+GET    /api/market-prices             (current price)
+GET    /api/market-prices/trend
+GET    /api/market-prices/comparison
+GET    /api/notifications
+POST   /api/notifications/generate
+PATCH  /api/notifications/{id}/read
+POST   /api/assistant/ask
+GET    /api/assistant/messages
+POST   /api/assistant/reset
+GET    /api/satellite/status
+GET    /api/iot/readings
+POST   /api/iot/readings
+POST   /api/iot/demo/seed
 GET    /api/models
 GET    /api/models/performance
 GET    /api/history
@@ -294,17 +346,36 @@ GET    /health
 ## Database Schema
 
 `users`, `farmers`, `farms`, `soil_records`, `weather_records`, `crop_predictions`, `crop_scores`,
-`recommendation_explanations`, `alerts`, `model_versions`, `chat_sessions`, `chat_messages`.
+`recommendation_explanations`, `alerts`, `model_versions`, `chat_sessions`, `chat_messages`,
+`disease_predictions`, `market_prices`, `notifications`, `sensor_readings`.
 Full column definitions: [docs/database.md](docs/database.md).
 
 ## Testing
 
+- Automated backend tests (`backend/tests/`, pytest + FastAPI `TestClient` against an isolated
+  SQLite test database): `test_assistant.py` (9 tests — the AI Assistant never fabricates an answer
+  when the underlying farm data doesn't exist yet, correctly reuses real data once it does, and
+  chat history persists/resets correctly), `test_realtime.py` (7 tests — Satellite status is
+  always honestly labeled "PLANNED"/not configured, IoT demo readings are always tagged
+  `demo_simulation` and never conflated with real device data, farm ownership is enforced), and
+  `test_weather_provider.py` (15 tests — the mock provider's shape is unchanged, the real
+  `OpenMeteoWeatherProvider`'s parsing/error-handling logic against a mocked HTTP transport, the
+  safe fallback-to-mock wrapper never lets a network failure surface as an error, provider
+  selection defaults to mock, and one real live-network call against the actual Open-Meteo API
+  that proves the integration genuinely works end-to-end — it skips rather than fails if this
+  environment ever has no network access). Run with `pytest` from `backend/` (venv active). All
+  31 pass.
+- Live weather was additionally verified through the running server with `WEATHER_PROVIDER=open-meteo`
+  set: two different cities (Nashik, Pune) returned distinct, real current conditions and 5-day
+  forecasts with `source: "live"`, confirmed against the actual HTTP response, not just the test
+  suite.
 - Backend: end-to-end flow (register → login → create farm → submit soil → predict → explain →
   model performance → history → risk → dashboard → yield → profit → water requirement → yield risk
-  → disease diagnosis) was manually verified against a running `uvicorn` instance with real HTTP
-  requests, including negative paths (duplicate email, wrong password, missing/garbage token,
-  out-of-range soil values, unknown crop/state/season, non-image upload, wrong content-type) — see
-  repo history / dev notes.
+  → disease diagnosis → fertilizer → market price → notifications → AI assistant → satellite status
+  → IoT demo seed → live weather) was manually verified against a running `uvicorn` instance with
+  real HTTP requests, including negative paths (duplicate email, wrong password, missing/garbage
+  token, out-of-range soil values, unknown crop/state/season, non-image upload, wrong content-type,
+  unknown sensor type) — see repo history / dev notes.
 - Disease detection was verified with real leaf photos from the held-out test set: a maize
   Common Rust image correctly diagnosed at 99.8% confidence, a healthy apple leaf correctly
   diagnosed at 99.98% confidence, both through the actual `POST /api/predict/disease` endpoint
@@ -327,17 +398,26 @@ Full column definitions: [docs/database.md](docs/database.md).
 
 ## Future Scope
 
-A real LLM/RAG-backed AI assistant, voice interface, multilingual support, satellite/NDVI
-monitoring and IoT sensor ingestion (rest of Phase 3/4). All have UI shells or clearly-marked
-"roadmap" placeholders already in place. Yield, profit, water requirement, yield risk (Phase 2) and
-disease detection (Phase 3, previously listed here) now all ship real, working functionality.
+Still planned: a real **LLM/RAG-backed** version of the AI Assistant (today it's a real, working
+rule-based fallback grounded in actual farm data — not an LLM, and explicitly labeled as such), a
+**voice interface** on top of it, **multilingual** responses (the `preferred_language` field is
+already captured at registration), a **live** satellite/NDVI data provider (today: an
+integration-ready, honestly-labeled "Planned" architecture with no fake readings), and **real
+physical IoT sensors** (today: a genuine ingestion endpoint + database table, populated with
+clearly-labeled demo data since no hardware is connected). Yield, profit, water requirement, yield
+risk, disease detection, fertilizer recommendation, market price intelligence, personalized
+notifications, the rule-based AI Assistant, and now **live weather** (open-meteo.com, opt-in, no
+key required) all ship real, working functionality.
 Details: [docs/future-scope.md](docs/future-scope.md).
 
 ## Limitations
 
-- Weather is a deterministic **mock provider** (clearly labeled in the UI) — no live weather API
-  key is configured. Swapping in a real provider only requires implementing `WeatherProvider` and
-  is architected for that (see `backend/app/services/weather_provider.py`).
+- Weather defaults to a deterministic **mock provider** (clearly labeled in the UI). A real, live
+  provider (`OpenMeteoWeatherProvider`, using the free open-meteo.com API — no key required) is
+  implemented and opt-in via `WEATHER_PROVIDER=open-meteo` in `backend/.env`; it geocodes the
+  farm's location and fetches real current conditions + a 5-day forecast, and safely falls back to
+  the mock provider (never a 500) if the live API is unreachable. See
+  `backend/app/services/weather_provider.py` and `backend/tests/test_weather_provider.py`.
 - The soil-health scoring and the farm-risk dashboard are **transparent rule-based systems**, not
   trained models — labeled "prototype assessment" everywhere they appear in the UI.
 - Yield prediction is a **regional-historical estimate** (state + crop + season, 1997–2020), not a
@@ -371,7 +451,24 @@ Details: [docs/future-scope.md](docs/future-scope.md).
   backgrounds) would be needed for a more field-robust model. Any other crop, or a low-confidence
   result, is reported honestly rather than guessed. See `docs/dataset.md` and
   `docs/ml-methodology.md`.
-- No automated backend/frontend test suite yet (manual + scripted E2E verification only).
+- Market price data is **real but historical** — 2016 Agmarknet records for a limited set of
+  crops/states, not a live feed. Fertilizer recommendations use the same general agronomic
+  reference bands as the soil health score, and are explicitly disclaimed as decision support, not
+  a calibrated dosage prescription — always validate against a certified local soil test.
+- The **AI Agriculture Assistant is rule-based, not an LLM** — no language-model API key is
+  configured for this project. It answers only the intents its keyword classifier currently
+  recognizes (crop recommendation reasoning, soil health, risk, irrigation, fertilizer, disease,
+  market price, weather) using each farm's real, already-computed data; anything else gets an
+  honest "I couldn't match that" fallback rather than an invented answer.
+- **Satellite monitoring is architecture only** — no NDVI/remote-sensing provider is connected;
+  the module always reports `status: "PLANNED"` and never returns a fabricated vegetation reading.
+- **IoT sensor readings are demo/simulation only** — no physical sensor is connected to this
+  deployment. The real ingestion endpoint (`POST /api/iot/readings`) and database table exist and
+  work today for when hardware is connected; every demo-generated row is tagged
+  `source: "demo_simulation"` and is never presented as live sensor data.
+- Automated backend test coverage is currently limited to the AI Assistant and Real-Time
+  Intelligence modules (`backend/tests/`, 16 pytest tests); the rest of the API is covered by the
+  manual/scripted E2E verification described above, not automated tests yet.
 - Single active model at inference time per module (Random Forest for crop recommendation and yield
   risk, XGBoost for yield, Logistic Regression for disease detection); the other trained models are
   kept only for their comparison pages, not served live.

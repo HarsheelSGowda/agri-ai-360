@@ -10,9 +10,13 @@ export function WeatherCard({ weather }: { weather: WeatherData }) {
           <CloudSun size={16} />
           <span className="text-xs uppercase tracking-wider">Weather Intelligence</span>
         </div>
-        {weather.source === 'mock' && (
+        {weather.source === 'mock' ? (
           <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
             MOCK PROVIDER
+          </span>
+        ) : (
+          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+            LIVE
           </span>
         )}
       </div>

@@ -4,14 +4,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import (
+    assistant_router,
     auth,
     dashboard,
     disease_router,
     farms,
+    fertilizer_router,
     history,
+    market_price_routes,
     models_router,
+    notification_router,
     predict,
     profit_router,
+    realtime_router,
     risk,
     risk_ml_router,
     water_router,
@@ -66,3 +71,8 @@ app.include_router(profit_router.router, prefix="/api")
 app.include_router(water_router.router, prefix="/api")
 app.include_router(risk_ml_router.router, prefix="/api")
 app.include_router(disease_router.router, prefix="/api")
+app.include_router(market_price_routes.router, prefix="/api")
+app.include_router(fertilizer_router.router, prefix="/api")
+app.include_router(notification_router.router, prefix="/api")
+app.include_router(assistant_router.router, prefix="/api")
+app.include_router(realtime_router.router, prefix="/api")

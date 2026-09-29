@@ -21,3 +21,5 @@ class Farm(Base):
     farmer: Mapped["Farmer"] = relationship(back_populates="farms")
     soil_records: Mapped[list["SoilRecord"]] = relationship(back_populates="farm", cascade="all, delete-orphan")
     predictions: Mapped[list["CropPrediction"]] = relationship(back_populates="farm", cascade="all, delete-orphan")
+    disease_predictions: Mapped[list["DiseaseDetection"]] = relationship(back_populates="farm", cascade="all, delete-orphan")
+    sensor_readings: Mapped[list["SensorReading"]] = relationship(back_populates="farm", cascade="all, delete-orphan")

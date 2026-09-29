@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { YieldEstimator } from '@/components/YieldEstimator'
 import { WaterEstimator } from '@/components/WaterEstimator'
+import { FertilizerEstimator } from '@/components/FertilizerEstimator'
 import { explainCrop } from '@/services/predictionService'
 import { apiErrorMessage } from '@/services/api'
 import { useFarmStore } from '@/hooks/useFarmStore'
@@ -116,6 +117,13 @@ export function RecommendationDetailPage() {
         <p className="mt-3 text-[11px] text-white/30">Powered by Explainable AI (SHAP) · values computed from the trained model, not templated text.</p>
       </GlassCard>
 
+      <FertilizerEstimator
+        crop={explanation.crop}
+        nitrogen={lastPrediction.input.nitrogen}
+        phosphorus={lastPrediction.input.phosphorus}
+        potassium={lastPrediction.input.potassium}
+        ph={lastPrediction.input.ph}
+      />
       <YieldEstimator crop={explanation.crop} />
       <WaterEstimator crop={explanation.crop} />
     </div>

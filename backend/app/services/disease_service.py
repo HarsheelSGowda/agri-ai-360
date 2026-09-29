@@ -32,6 +32,7 @@ from PIL import Image, UnidentifiedImageError
 from torchvision import models, transforms
 
 from app.core.config import settings
+from app.services.disease_treatment import get_care_guidance
 
 IMAGE_SIZE = 224
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -156,10 +157,12 @@ def diagnose(image_bytes: bytes) -> dict:
         )
 
     active_metrics = metrics["models"][model_name]
+    top_label = top_labels[0]
 
     return {
         "top_prediction": top3[0],
         "alternatives": top3[1:],
+        "care_guidance": get_care_guidance(top_label),
         "model_used": model_name,
         "model_accuracy": active_metrics["accuracy"],
         "supported_crops": supported_crops(),

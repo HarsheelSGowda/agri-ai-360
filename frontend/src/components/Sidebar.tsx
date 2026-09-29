@@ -13,6 +13,10 @@ import {
   Settings,
   Compass,
   Leaf,
+  Store,
+  Beaker,
+  Bell,
+  Satellite,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -21,12 +25,16 @@ const navItems = [
   { to: '/app/crop-recommendation', label: 'Crop Recommendation', icon: Sprout },
   { to: '/app/soil', label: 'Soil Intelligence', icon: FlaskConical },
   { to: '/app/weather', label: 'Weather', icon: CloudSun },
+  { to: '/app/real-time', label: 'Real-Time Intelligence', icon: Satellite },
   { to: '/app/explanation', label: 'AI Explanation', icon: BrainCircuit },
   { to: '/app/model-lab', label: 'Model Lab', icon: FlaskRound },
   { to: '/app/risk', label: 'Risk', icon: AlertTriangle },
   { to: '/app/history', label: 'History', icon: History },
   { to: '/app/assistant', label: 'AI Assistant', icon: MessageCircle },
   { to: '/app/crop-doctor', label: 'Crop Doctor', icon: Stethoscope },
+  { to: '/app/market-prices', label: 'Market Prices', icon: Store },
+  { to: '/app/fertilizer', label: 'Fertilizer Advisor', icon: Beaker },
+  { to: '/app/notifications', label: 'Notifications', icon: Bell },
   { to: '/app/roadmap', label: 'AI Roadmap', icon: Compass },
   { to: '/app/settings', label: 'Settings', icon: Settings },
 ]

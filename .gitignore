@@ -3,6 +3,8 @@ backend/venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+backend/.coverage
+backend/htmlcov/
 
 # Env
 .env

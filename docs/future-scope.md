@@ -43,24 +43,59 @@ Mirrors the in-app **AI Roadmap** page (`/app/roadmap`).
   `POST /predict/disease`, surfaced on the `AI Crop Doctor` page. Covers 13 classes across 4 crops
   (apple, maize, grapes, orange) — see `docs/dataset.md` for the full class list and why coverage
   is limited to these crops.
-- **AI Agriculture Assistant** — LLM/RAG-backed chat grounded in the farmer's own farm data.
-  UI shell exists (`chat_sessions`/`chat_messages` tables already in the schema); currently shows
-  static example messages only, explicitly labeled "Development Preview."
-- **Voice Assistant** — speech-to-text → AI → text-to-speech, once the AI Assistant's backend
-  exists to speak to.
+- ✅ **Fertilizer Advisor** — rule-based nutrient-deficiency check reusing the exact soil-health
+  reference bands from `soil_health.py` (single source of truth), plus organic-carbon guidance and
+  growth-stage application timing. Live at `POST /api/fertilizer/recommend`. Intentionally never
+  outputs a kg/acre dosage — that depends on a certified local soil test, crop variety and regional
+  package-of-practices this system doesn't have access to; every response carries that disclaimer.
+- ✅ **Market Price Intelligence** — current price, trend and market comparison from real 2016
+  Agmarknet mandi records (see `docs/dataset.md`), behind a swappable `MarketPriceProvider` (mirrors
+  `WeatherProvider`) so a live API can replace it later without touching the service/frontend. Live
+  at `GET /api/market-prices*`, surfaced on the Market Prices page.
+- ✅ **Personalized Farmer Notifications** — `notification_service.generate_for_farm()` derives
+  alerts from each farm's real current soil health, weather, risk, disease diagnosis and
+  market-price trend — never invented content, deduplicated per farmer. Live at
+  `POST /api/notifications/generate` (and `GET /api/notifications`), surfaced via the notification
+  bell + Notifications page.
+- ✅ **AI Agriculture Assistant** — a real, working chat grounded in the farmer's own farm data
+  (soil health, weather, risk, disease, fertilizer, market price, and the crop recommendation's
+  SHAP explanation regenerated live via `explain_prediction()`). No LLM/RAG API is configured for
+  this project (no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` etc. in `.env.example`), so per the
+  no-fabrication rule it's built and explicitly labeled as a **rule-based, keyword-classified
+  Q&A engine** — not an LLM. It answers only the intents it recognizes (crop recommendation
+  reasoning, soil health, risk, irrigation, fertilizer, disease, market price, weather) from data
+  that module already computes, and says "I couldn't match that" rather than inventing an answer.
+  Live at `POST /api/assistant/ask`, using the `chat_sessions`/`chat_messages` tables. If a real
+  LLM/RAG API is added later, `assistant_service.answer_question()` is the single call site to
+  swap — the router and DB schema don't need to change.
+- **Voice Assistant** — speech-to-text → AI → text-to-speech, layered on top of the assistant above
+  once a real LLM backend replaces (or augments) the rule-based one.
 - **Multilingual AI** — the `preferred_language` field is already captured at registration and
   ready to drive UI/response localization.
 
-## Phase 4
-- **Satellite Monitoring / NDVI** — remote-sensing vegetation health overlays on the farm map.
-- **IoT Sensor Integration** — real-time soil sensor feeds replacing manual soil form entry.
+## Phase 4 — Real-Time Agri Intelligence architecture
+- ✅ **Satellite Monitoring / NDVI — planned/integration-ready architecture.** No satellite data
+  provider is configured (`SATELLITE_API_KEY`/`SATELLITE_PROVIDER` both empty by default). Live at
+  `GET /api/satellite/status`, always returns `status: "PLANNED"` and documents the intended
+  metrics (NDVI, vegetation health, crop stress, field boundary monitoring) — never a fabricated
+  reading. Connecting a real provider (Sentinel Hub/Copernicus, Google Earth Engine, Planet) is a
+  new `SatelliteProvider` implementation behind this same endpoint, mirroring `WeatherProvider`.
+- ✅ **IoT Sensor Integration — real ingestion path + demo data, no hardware yet.** Architecture:
+  Sensor → API/MQTT gateway → Backend → Database (`sensor_readings`) → Dashboard. Two things are
+  genuinely real today, not simulated: `POST /api/iot/readings` (any physical gateway/device could
+  push a real reading to this endpoint right now) and `GET /api/iot/readings` (reads whatever rows
+  actually exist). Because no physical sensor is connected to this deployment, `POST
+  /api/iot/demo/seed` generates one demo reading per sensor type (soil moisture, temperature,
+  humidity, EC) tagged `source: "demo_simulation"` — never mixed with or presented as real device
+  data. Surfaced on the Real-Time Intelligence page alongside Weather and Satellite.
 
 ## What "architecture in place" means concretely
 
-- Reserved DB tables (`alerts`, `model_versions` beyond the current file-based usage,
-  `chat_sessions`, `chat_messages`) already exist in the schema.
-- `WeatherProvider` is an interface specifically so a real weather API becomes a second
-  implementation, not a rewrite (see `docs/architecture.md`).
-- The remaining "coming soon" surface in the UI (`AI Assistant`) is visually complete but
-  functionally inert and explicitly labeled, per the "don't fake it" project rule. `Crop Doctor`
-  (previously in this category) now runs a real trained model end to end.
+- Reserved DB tables (`alerts`, `model_versions` beyond the current file-based usage) still await a
+  consumer; `chat_sessions`/`chat_messages` are now actively used by the real AI Assistant above.
+- `WeatherProvider` / `MarketPriceProvider` are interfaces specifically so a real weather or
+  market-data API becomes a second implementation, not a rewrite (see `docs/architecture.md`).
+  `SatelliteProvider` follows the same pattern once a real provider is implemented.
+- The AI Assistant, Satellite status and IoT readings are all real, working code paths today — none
+  of them are UI-only shells — but each is explicitly labeled for what it actually is (rule-based,
+  not LLM; planned, not live; demo, not a real sensor), per the "don't fake it" project rule.

@@ -225,12 +225,22 @@ export interface DiseasePrediction {
   probability: number
 }
 
+export interface CareGuidance {
+  pathogen_type: string | null
+  pathogen: string | null
+  severity: string
+  recommended_actions: string[]
+  prevention: string[]
+}
+
 export interface DiseaseDiagnosisResponse {
   top_prediction: DiseasePrediction
   alternatives: DiseasePrediction[]
+  care_guidance: CareGuidance
   model_used: string
   model_accuracy: number
   supported_crops: string[]
+  saved_to_history: boolean
 }
 
 export interface DiseaseOptionsResponse {
@@ -241,6 +251,115 @@ export interface DiseaseOptionsResponse {
   dataset_records: number
 }
 
+export interface DiseaseHistoryItem {
+  id: number
+  farm_id: number
+  farm_name: string
+  crop: string
+  condition: string
+  is_healthy: boolean
+  probability: number
+  model_used: string
+  created_at: string
+}
+
+export interface CurrentPriceResponse {
+  found: boolean
+  crop: string | null
+  state: string | null
+  district: string | null
+  market: string | null
+  variety: string | null
+  as_of_date: string | null
+  min_price: number | null
+  max_price: number | null
+  modal_price: number | null
+  markets_reporting: number | null
+  source: string | null
+  is_live: boolean | null
+  reason: string | null
+}
+
+export interface TrendPoint {
+  date: string
+  min_price: number
+  max_price: number
+  modal_price: number
+}
+
+export interface TrendResponse {
+  found: boolean
+  points: TrendPoint[]
+  trend_direction: 'UP' | 'DOWN' | 'FLAT' | null
+  change_pct: number | null
+  source: string | null
+  is_live: boolean | null
+  reason: string | null
+}
+
+export interface MarketComparisonItem {
+  market: string
+  district: string
+  min_price: number
+  max_price: number
+  modal_price: number
+  arrivals_tonnes: number | null
+}
+
+export interface MarketComparisonResponse {
+  found: boolean
+  as_of_date: string | null
+  markets: MarketComparisonItem[]
+  best_market: MarketComparisonItem | null
+  source: string | null
+  is_live: boolean | null
+  reason: string | null
+}
+
+export interface NutrientStatus {
+  nutrient: string
+  current_value: number
+  optimal_range: string
+  status: 'DEFICIENT' | 'ADEQUATE' | 'EXCESS'
+  recommended_category: string | null
+}
+
+export interface FertilizerRecommendationResponse {
+  crop: string
+  growth_stage: string
+  farm_area_acres: number | null
+  deficiencies: NutrientStatus[]
+  organic_matter_guidance: string | null
+  application_timing: string
+  warnings: string[]
+  disclaimer: string
+}
+
+export interface FertilizerOptionsResponse {
+  growth_stages: string[]
+}
+
+export type NotificationCategory = 'WEATHER' | 'CROP' | 'DISEASE' | 'MARKET' | 'FERTILIZER' | 'WATER' | 'RISK'
+
+export interface NotificationItem {
+  id: number
+  farm_id: number | null
+  category: NotificationCategory
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  title: string
+  message: string
+  is_read: boolean
+  created_at: string
+}
+
+export interface DashboardSummary {
+  farm: { id: number; name: string; location: string }
+  soil_health: SoilHealthResult | null
+  weather: WeatherData
+  farm_health: number | null
+  risk: RiskBreakdown
+}
+
 export interface RiskBreakdown {
   overall: 'LOW' | 'MEDIUM' | 'HIGH'
   weather_risk: 'LOW' | 'MEDIUM' | 'HIGH'
@@ -249,4 +368,52 @@ export interface RiskBreakdown {
   disease_risk: 'LOW' | 'MEDIUM' | 'HIGH'
   notes: string[]
   is_prototype: true
+}
+
+export interface AssistantMessage {
+  role: 'farmer' | 'ai'
+  content: string
+  created_at: string
+}
+
+export interface AssistantHistoryResponse {
+  session_id: number | null
+  messages: AssistantMessage[]
+}
+
+export interface AssistantAskResponse {
+  session_id: number
+  reply: AssistantMessage
+  used_data: string[]
+  suggested_questions: string[]
+}
+
+export interface SatellitePlannedMetric {
+  key: string
+  label: string
+  description: string
+}
+
+export interface SatelliteStatusResponse {
+  status: 'PLANNED' | string
+  configured: boolean
+  location: string
+  planned_metrics: SatellitePlannedMetric[]
+  message: string
+}
+
+export interface SensorReading {
+  id: number
+  farm_id: number
+  sensor_type: 'soil_moisture' | 'temperature' | 'humidity' | 'ec'
+  value: number
+  unit: string
+  source: 'demo_simulation' | 'device'
+  recorded_at: string
+}
+
+export interface IoTReadingsResponse {
+  farm_id: number
+  readings: SensorReading[]
+  has_real_device_data: boolean
 }

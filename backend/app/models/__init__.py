@@ -1,4 +1,7 @@
+from app.models.disease import DiseaseDetection
 from app.models.farm import Farm
+from app.models.market_price import MarketPrice
+from app.models.notification import Notification
 from app.models.prediction import (
     Alert,
     ChatMessage,
@@ -8,6 +11,7 @@ from app.models.prediction import (
     ModelVersion,
     RecommendationExplanation,
 )
+from app.models.sensor_reading import SensorReading
 from app.models.soil import SoilRecord, WeatherRecord
 from app.models.user import Farmer, User
 
@@ -24,4 +28,8 @@ __all__ = [
     "ModelVersion",
     "ChatSession",
     "ChatMessage",
+    "DiseaseDetection",
+    "MarketPrice",
+    "Notification",
+    "SensorReading",
 ]

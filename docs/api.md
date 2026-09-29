@@ -34,7 +34,14 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
 
 - `GET /weather?location=...` → `{ temperature_c, humidity_pct, rainfall_mm, wind_kmh, condition,
   forecast: [...], source: "mock" | "live" }`. `source` is always present so the UI can label mock
-  data honestly.
+  vs. live data honestly.
+- Provider is selected by `WEATHER_PROVIDER` in `.env`: `"mock"` (default) — deterministic,
+  seeded-by-location demo data, no network call. `"open-meteo"` — real current conditions + 5-day
+  forecast from the free open-meteo.com API (geocodes `location` to lat/lon, then fetches
+  live data; no API key required). If the live call fails for any reason (network, an
+  unrecognized location, a malformed response), the request transparently falls back to the mock
+  provider — `source: "mock"` — rather than returning a `5xx` error. See
+  `backend/app/services/weather_provider.py`.
 
 ## Prediction
 
@@ -119,6 +126,82 @@ All endpoints except `/auth/register` and `/auth/login` require `Authorization: 
   maize, grapes, orange) — see `docs/dataset.md` for why. `400` for a non-image upload, an
   unreadable file, or an unsupported content-type; `503` if `ml/disease_detection/train.py` hasn't
   been run yet.
+
+## Disease History
+
+- `GET /history/disease?farm_id=` (optional filter) → list of past disease diagnoses saved to a
+  farm's history (only written when `POST /predict/disease` was called with a `farm_id`), newest
+  first (max 100).
+
+## Fertilizer Advisor
+
+- `GET /fertilizer/options` → `{ growth_stages: [...] }`.
+
+- `POST /fertilizer/recommend` — `{ crop, nitrogen, phosphorus, potassium, ph, growth_stage,
+  organic_carbon?, moisture?, farm_area_acres? }` → `{ crop, growth_stage, farm_area_acres,
+  deficiencies: [{ nutrient, current_value, optimal_range, status: "DEFICIENT"|"ADEQUATE"|"EXCESS",
+  recommended_category }], organic_matter_guidance, application_timing, warnings, disclaimer }`.
+  Rule-based decision support (reuses the same reference bands as the soil health score) — never
+  outputs a kg/acre dosage; always carries an explicit disclaimer to validate against a certified
+  local soil test.
+
+## Market Price Intelligence
+
+- `GET /market-prices/crops` → crops covered by the seeded Agmarknet dataset.
+- `GET /market-prices/states?crop=` → states with data for that crop.
+- `GET /market-prices?crop=&state=&district=&market=&variety=` → `{ found, crop, state, district,
+  market, variety, as_of_date, min_price, max_price, modal_price, markets_reporting, source,
+  is_live }`. `found: false` (with a human-readable reason) if no matching rows exist.
+- `GET /market-prices/trend?crop=&state=&days=` → `{ found, points: [{ date, min_price, max_price,
+  modal_price }], trend_direction: "UP"|"DOWN"|"FLAT", change_pct, source, is_live }`.
+- `GET /market-prices/comparison?crop=&state=` → per-market breakdown + `best_market`.
+
+All responses carry `source` and `is_live: false` — this is real but **historical** (2016
+Agmarknet) reference data, not a live feed. See `docs/dataset.md`.
+
+## Personalized Notifications
+
+- `GET /notifications?unread_only=&farm_id=` → list of notifications, newest first (max 100).
+- `POST /notifications/generate?farm_id=` → runs `generate_for_farm()` against that farm's *current*
+  soil health, weather, risk, disease and market-price-trend data and inserts any new (deduplicated)
+  alerts → `{ created, notifications }`.
+- `PATCH /notifications/{id}/read` → marks one notification read.
+- `PATCH /notifications/read-all` → marks all of the farmer's notifications read → `{ updated }`.
+
+## AI Agriculture Assistant
+
+Rule-based, **not** an LLM — see `docs/future-scope.md` for why. Grounded entirely in each farm's
+real, already-computed data; never invents an answer it doesn't have.
+
+- `POST /assistant/ask` — `{ message, farm_id? }` → `{ session_id, reply: { role, content,
+  created_at }, used_data, suggested_questions }`. `used_data` lists which real data sources the
+  answer drew on (e.g. `"Latest crop recommendation"`, `"SHAP explanation"`) — empty if the
+  question couldn't be grounded (e.g. no farm selected, or the underlying data doesn't exist yet).
+  Persists both the farmer's message and the reply to the farmer's chat session.
+- `GET /assistant/messages` → `{ session_id, messages }` for the farmer's most recent session (or
+  `{ session_id: null, messages: [] }` if none yet).
+- `POST /assistant/reset` → starts a fresh, empty session.
+
+## Real-Time Agri Intelligence — Satellite
+
+- `GET /satellite/status?farm_id=` → `{ status: "PLANNED", configured, location, planned_metrics:
+  [{ key, label, description }], message }`. No satellite/NDVI provider is configured — this always
+  reports `PLANNED` and never returns a fabricated vegetation-health reading. See
+  `docs/future-scope.md`.
+
+## Real-Time Agri Intelligence — IoT
+
+- `GET /iot/readings?farm_id=` → `{ farm_id, readings: [{ id, farm_id, sensor_type, value, unit,
+  source, recorded_at }], has_real_device_data }`. `source` is `"device"` for a real reading a
+  gateway pushed, or `"demo_simulation"` for a generated demo row — `has_real_device_data` is
+  `true` only if at least one real device row exists.
+- `POST /iot/readings` — `{ farm_id, sensor_type: "soil_moisture"|"temperature"|"humidity"|"ec",
+  value, unit? }` → `201` with the created reading (`source: "device"`). A real ingestion endpoint
+  any physical sensor gateway (e.g. an MQTT bridge) can call today. `400` for an unknown
+  `sensor_type`.
+- `POST /iot/demo/seed?farm_id=` → generates one demo reading per sensor type (tagged
+  `source: "demo_simulation"`) and returns the updated reading list. Used because no physical
+  sensor is connected to this deployment yet — never presented as live sensor data.
 
 ## Models
 

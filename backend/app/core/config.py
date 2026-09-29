@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     weather_api_key: str = ""
     weather_provider: str = "mock"
+    satellite_api_key: str = ""
+    satellite_provider: str = "none"
     models_dir: str = "../models"
 
     @property
