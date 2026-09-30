@@ -28,7 +28,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from torchvision import models, transforms
 
 from app.core.config import settings
@@ -120,7 +120,11 @@ def _parse_label(label: str) -> tuple[str, str, bool]:
 def _load_image(image_bytes: bytes) -> Image.Image:
     try:
         return Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    except UnidentifiedImageError as exc:
+    except OSError as exc:
+        # Covers both an unrecognized header (PIL's `UnidentifiedImageError`,
+        # itself an `OSError` subclass) and a recognized-but-truncated file
+        # (Image.open() parses headers lazily, so incomplete pixel data only
+        # surfaces as a plain OSError once .convert("RGB") decodes it).
         raise InvalidImageError("The uploaded file isn't a readable image.") from exc
 
 

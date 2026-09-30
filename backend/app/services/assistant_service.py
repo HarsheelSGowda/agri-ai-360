@@ -18,6 +18,8 @@ grounded on the same `gather_context()` payload without touching the router.
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy.orm import Session
 
 from app.models.disease import DiseaseDetection
@@ -393,8 +395,11 @@ def _handle_weather(_message: str, context: dict) -> tuple[str, list[str]]:
     )
 
 
+_GREETING_WORD_RE = re.compile(r"\b(hi|hello|hey)\b")
+
+
 def answer_question(db: Session, message: str, context: dict, known_crops: list[str]) -> tuple[str, list[str]]:
-    if context.get("farm") is None and "hi" not in message.lower() and "hello" not in message.lower():
+    if context.get("farm") is None and not _GREETING_WORD_RE.search(message.lower()):
         return (
             "Please select a farm above first — I answer using that farm's real soil, weather and prediction data, "
             "not general knowledge.",

@@ -199,27 +199,25 @@ def test_load_image_rejects_non_image_bytes():
         _load_image(b"this is definitely not an image, just plain text bytes")
 
 
-def test_load_image_on_a_truncated_image_currently_raises_unhandled_oserror_KNOWN_BUG():
+def test_load_image_on_a_truncated_image_raises_invalid_image_error():
     """
-    Documents a genuine, currently-unfixed bug (found while adding this test
-    coverage, not fixed here per this pass's rules): _load_image() only
-    catches PIL's `UnidentifiedImageError` (raised when the file's *header*
-    isn't recognized as any image format at all). But a file with a valid
-    JPEG header and truncated/incomplete pixel data - e.g. a real upload cut
-    short by a network interruption or a buggy client - passes the initial
+    Regression test for a fixed bug: _load_image() used to only catch PIL's
+    `UnidentifiedImageError` (raised when the file's *header* isn't recognized
+    as any image format at all). But a file with a valid JPEG header and
+    truncated/incomplete pixel data - e.g. a real upload cut short by a
+    network interruption or a buggy client - passes the initial
     `Image.open()` call (PIL parses headers lazily) and only fails once
     `.convert("RGB")` forces PIL to decode the actual pixel data, at which
-    point PIL raises a plain `OSError` ("image file is truncated"), not
-    `UnidentifiedImageError`. That OSError is not caught here, and
-    disease_router.py's endpoint only catches InvalidImageError and
-    DiseaseModelUnavailableError - so a truncated upload currently crashes
-    POST /api/predict/disease with an unhandled 500 instead of a clean 400,
-    unlike a completely non-image upload (which IS handled correctly - see
-    test_load_image_rejects_non_image_bytes above).
+    point PIL raises a plain `OSError` ("image file is truncated") - a
+    superclass of `UnidentifiedImageError`, not caught by the narrower
+    except clause. That crashed POST /api/predict/disease with an unhandled
+    500 instead of a clean 400. _load_image() now catches `OSError` broadly
+    (which also covers `UnidentifiedImageError`, one of its subclasses), so
+    both cases raise the same `InvalidImageError` -> 400 response.
     """
     real_bytes = _read_sample(APPLE_HEALTHY)
     truncated = real_bytes[: len(real_bytes) // 10]  # valid JPEG header, incomplete pixel data
-    with pytest.raises(OSError, match="truncated"):
+    with pytest.raises(InvalidImageError, match="readable image"):
         _load_image(truncated)
 
 

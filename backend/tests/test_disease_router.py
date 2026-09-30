@@ -116,6 +116,18 @@ def test_predict_disease_rejects_corrupt_image_bytes_with_a_valid_content_type(c
     assert "readable image" in resp.json()["detail"].lower()
 
 
+def test_predict_disease_rejects_a_truncated_real_image_with_400_not_500(client, auth_headers):
+    """Regression test for a fixed bug: a real JPEG with a valid header but
+    truncated/incomplete pixel data (e.g. an upload cut short by a network
+    interruption) used to crash this endpoint with an unhandled 500, unlike
+    the non-image-bytes case above which was always handled cleanly."""
+    real_bytes = APPLE_HEALTHY.read_bytes()
+    truncated = real_bytes[: len(real_bytes) // 10]
+    resp = client.post("/api/predict/disease", files={"image": ("cut-short.jpg", truncated, "image/jpeg")}, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "readable image" in resp.json()["detail"].lower()
+
+
 def test_predict_disease_missing_image_field_returns_422(client, auth_headers):
     resp = client.post("/api/predict/disease", headers=auth_headers)
     assert resp.status_code == 422

@@ -142,7 +142,7 @@ def test_handle_market_price_not_found_branch(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# The "hi"/"hello" farm-guard bypass - a genuine bug, documented not fixed
+# The "hi"/"hello" farm-guard bypass - a fixed bug, regression-tested below
 # ---------------------------------------------------------------------------
 
 
@@ -159,47 +159,36 @@ def test_farm_guard_correctly_blocks_a_message_with_no_hi_substring():
     assert used_data == []
 
 
-def test_farm_guard_is_bypassed_by_any_message_containing_hi_as_a_substring_KNOWN_BUG():
+def test_farm_guard_uses_whole_word_matching_not_bypassed_by_hi_substring():
     """
-    Documents a genuine, currently-unfixed bug (found while adding this test
-    coverage, not fixed here per this pass's rules): answer_question()'s
-    "no farm selected" guard is meant to let real greetings ("hi", "hello",
-    "hey") through even without a farm, via:
-
-        if context.get("farm") is None and "hi" not in message.lower() and ...
-
-    But this is a plain substring check, not a whole-word/greeting check. Any
-    message containing "hi" ANYWHERE - "high", "this", "which", "history",
-    "think", "shirt" - silently bypasses the intended block, e.g.:
-
-        "why is my risk high"                              -> bypassed (via "high")
-        "what should I check before irrigation this week"  -> bypassed (via "this")
-        "what's the weather this week"                     -> bypassed (via "this")
-
-    The user still gets *a* "select a farm" - style message either way,
-    because every individual handler has its own redundant no-context
-    fallback - so this doesn't visibly break the assistant today. But it
-    means the intended single choke point (line ~398) is routinely skipped
-    in favor of whichever handler's own fallback happens to fire, the
-    `used_data` contract for those two paths could silently diverge in
-    the future, and a genuine greeting like "hi there, why is the sky blue"
-    still works only by accident (because it also happens to contain "hi").
+    Regression test for a fixed bug: answer_question()'s "no farm selected"
+    guard is meant to let real greetings ("hi", "hello", "hey") through even
+    without a farm. It used to do this with a plain substring check
+    (`"hi" not in message.lower()`), so any message containing "hi" ANYWHERE
+    - "high", "this", "which", "history", "think", "shirt" - silently
+    bypassed the intended block. The guard now matches "hi"/"hello"/"hey" as
+    whole words only (`\\b(hi|hello|hey)\\b`), so these non-greeting messages
+    correctly hit the guard, while real greetings still pass through.
     """
     context = _no_farm_context()
 
-    # None of these are greetings, but each accidentally contains "hi".
-    bypassing_messages = [
+    # None of these are greetings, but each contains "hi" as a substring -
+    # the guard must not be fooled by that anymore.
+    non_greeting_messages = [
         "why is my risk high",
         "what should I check before irrigation this week",
         "what's the weather this week",
     ]
-    for message in bypassing_messages:
-        answer, _used_data = answer_question(MagicMock(), message, context, [])
-        assert "please select a farm above first" not in answer.lower(), (
-            f"expected the global guard to be bypassed for {message!r}, but it fired anyway"
+    for message in non_greeting_messages:
+        answer, used_data = answer_question(MagicMock(), message, context, [])
+        assert "please select a farm above first" in answer.lower(), (
+            f"expected the global guard to fire for {message!r}, but it was bypassed"
         )
+        assert used_data == []
 
-    # The same underlying question, phrased to avoid the substring "hi",
-    # correctly hits the real global guard instead.
-    answer, _used_data = answer_question(MagicMock(), "is my farm at risk", context, [])
-    assert "please select a farm above first" in answer.lower()
+    # Real greetings (whole-word "hi"/"hello"/"hey") still bypass the guard.
+    for greeting in ["hi", "hello", "hey", "hi there, why is the sky blue"]:
+        answer, _used_data = answer_question(MagicMock(), greeting, context, [])
+        assert "please select a farm above first" not in answer.lower(), (
+            f"expected the guard to be bypassed for real greeting {greeting!r}"
+        )
