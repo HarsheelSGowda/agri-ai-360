@@ -4,15 +4,20 @@
 
 Final-year Computer Science and Engineering major project.
 
-> **Status: MVP + Phase 2 + Disease Detection (Phase 3, part 1) complete.** Crop recommendation,
-> soil intelligence, weather, explainable AI (SHAP), model comparison, risk summary, history, the
-> What-If simulator, yield prediction, profit estimation, water requirement, ML-based yield risk,
-> and now AI-powered disease detection ("Crop Doctor") are all real and working end to end. The AI
-> assistant, voice, multilingual support, and satellite/IoT (rest of Phase 3/4) are intentionally
-> **not implemented** — see [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page.
-> Nothing in this build fabricates a metric or a prediction: every number shown comes from a
-> trained model, real historical data, a published scientific formula, a documented rule-based
-> calculation, or is explicitly labeled as a mock/prototype/farmer-supplied input.
+> **Status: MVP + Phase 2 + Phase 3 complete — 9 of 10 planned extension modules shipped.** Crop
+> recommendation, soil intelligence, weather, explainable AI (SHAP), model comparison, risk
+> summary, history, the What-If simulator, yield prediction, profit estimation, water requirement,
+> ML-based yield risk, disease detection ("Crop Doctor"), fertilizer recommendation, market price
+> intelligence, personalized notifications, and a rule-based AI Assistant (grounded in real farm
+> data — explicitly not an LLM, since no LLM API key is configured) are all real and working end to
+> end. Only **satellite/NDVI monitoring** (no data provider connected — an honestly-labeled
+> "Planned" architecture, never a fake reading), **physical IoT hardware** (the real ingestion
+> pipeline works today, populated with clearly-labeled demo data since no sensor is connected),
+> **voice interface**, and **multilingual** responses remain future scope — see
+> [Future Scope](docs/future-scope.md) and the in-app AI Roadmap page. Nothing in this build
+> fabricates a metric or a prediction: every number shown comes from a trained model, real
+> historical data, a published scientific formula, a documented rule-based calculation, or is
+> explicitly labeled as a mock/prototype/farmer-supplied input.
 
 ---
 
