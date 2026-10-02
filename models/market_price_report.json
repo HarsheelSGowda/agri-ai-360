@@ -3,7 +3,7 @@
   "price_unit": "Rs. per quintal",
   "not_inflation_adjusted": true,
   "not_live_data": true,
-  "seeded_at": "2026-09-06T16:55:27.690661+00:00",
+  "seeded_at": "2026-10-02T10:29:26.844610+00:00",
   "crops": {
     "rice": {
       "records_inserted": 69488,
